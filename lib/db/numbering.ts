@@ -1,0 +1,56 @@
+import "server-only";
+
+import { sql } from "drizzle-orm";
+import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
+
+import { db } from "./index";
+import { invoices, orders, payments, proformas, quotes } from "./schema";
+
+/** Sequences start here so the first document of a year is "<prefix>-<year>-099". */
+const SEQ_START = 99;
+
+/**
+ * Generate the next document number for the current year, e.g. "QID-VL-2026-099".
+ * Sequence resets per calendar year and per prefix, starting at 99, and reads the
+ * current max so gaps from deletions don't cause collisions.
+ *
+ * The format is always `<prefix>-<YYYY>-<NNN>`; the numeric tail begins at
+ * `length(prefix) + 7` (prefix + "-" + 4-digit year + "-").
+ */
+function nextNumber(
+  table: SQLiteTable,
+  numberCol: SQLiteColumn,
+  prefix: string,
+): string {
+  const year = new Date().getFullYear();
+  const like = `${prefix}-${year}-%`;
+  const row = db
+    .select({
+      max: sql<number>`COALESCE(MAX(CAST(substr(${numberCol}, length(${prefix}) + 7) AS INTEGER)), 0)`,
+    })
+    .from(table)
+    .where(sql`${numberCol} LIKE ${like}`)
+    .get();
+  const next = Math.max((row?.max ?? 0) + 1, SEQ_START);
+  return `${prefix}-${year}-${String(next).padStart(3, "0")}`;
+}
+
+export function nextQuoteNumber(prefix: string): string {
+  return nextNumber(quotes, quotes.number, prefix);
+}
+
+export function nextOrderNumber(prefix: string): string {
+  return nextNumber(orders, orders.number, prefix);
+}
+
+export function nextProformaNumber(prefix: string): string {
+  return nextNumber(proformas, proformas.number, prefix);
+}
+
+export function nextInvoiceNumber(prefix: string): string {
+  return nextNumber(invoices, invoices.number, prefix);
+}
+
+export function nextReceiptNumber(prefix: string): string {
+  return nextNumber(payments, payments.number, prefix);
+}

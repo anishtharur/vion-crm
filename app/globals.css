@@ -1,26 +1,185 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: `dark:` utilities apply under a `.dark` ancestor. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Vion CRM design tokens — light mode, "bold modern" professional SaaS.
+ * Palette: professional blue primary + deal-green accent, on a cool slate canvas.
+ */
+@theme {
+  --color-background: #f6f8fc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5fd;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #3b82f6;
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-foreground: #ffffff;
+
+  --color-border: #e3e9f4;
+  --color-input: #cbd5e1;
+  --color-ring: #2563eb;
+
+  --color-destructive: #dc2626;
+  --color-destructive-hover: #b91c1c;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #059669;
+  --color-warning: #d97706;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 16px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06),
+    0 10px 30px -12px rgba(15, 23, 42, 0.12);
+}
+
+/*
+ * Dark mode — overrides the semantic colour tokens. Because every chrome
+ * component references these tokens (bg-surface, text-foreground, border-border,
+ * …) the whole app adapts without per-component dark: variants.
+ */
+.dark {
+  --color-background: #0a1020;
+  --color-surface: #111a2d;
+  --color-surface-muted: #1a2740;
+  --color-foreground: #e6ecf7;
+  --color-muted-foreground: #94a3b8;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-secondary: #60a5fa;
+  --color-accent: #10b981;
+  --color-accent-hover: #34d399;
+
+  --color-border: #243049;
+  --color-input: #334155;
+  --color-ring: #3b82f6;
+
+  --color-destructive: #f87171;
+  --color-destructive-hover: #ef4444;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+ * Printable documents are always white "paper". Pin their tokens to light
+ * values so text stays dark-on-white even when the surrounding app is dark.
+ */
+.doc-paper {
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-border: #e3e9f4;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures for all money / numeric data so columns stay aligned. */
+.tabular-nums,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Brand gradient used on the logo mark and primary stat accents. */
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, #4f46e5 0%, #2563eb 55%, #0ea5e9 100%);
+}
+.text-brand-gradient {
+  background-image: linear-gradient(135deg, #4f46e5 0%, #2563eb 55%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Vion Labs wordmark — theme green/mint gradient text. */
+.vion-wordmark {
+  font-family: var(--font-display);
+  background-image: linear-gradient(120deg, #7df4d7 0%, #3edab2 52%, #19c79a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/*
+ * Quotation document theme — Vion Labs deep-forest green (from vion-ai:
+ * --bg #04201e, --bg-2 #06312e, --mint #3edab2, --mint-bright #7df4d7).
+ * The .print-exact helper forces colour bands to render when printed / saved as PDF.
+ */
+:root {
+  --q-band: #06312e;
+  --q-band-deep: #04201e;
+  --q-mint: #3edab2;
+  --q-mint-bright: #7df4d7;
+}
+.print-exact {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Glassmorphism surface for the sidebar / topbar. */
+.glass {
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+}
+.dark .glass {
+  background-color: rgba(15, 23, 42, 0.72);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print: hide app chrome, render documents edge-to-edge on white. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
 }
