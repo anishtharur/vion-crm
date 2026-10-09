@@ -44,6 +44,7 @@ export default async function PrintProformaPage({
           taxRate: proforma.taxRate,
           taxAmount: proforma.taxAmount,
           total: proforma.total,
+          currency: proforma.currency,
         }}
       />
     </>

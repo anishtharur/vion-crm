@@ -43,6 +43,7 @@ export default async function PrintOrderPage({
           taxRate: order.taxRate,
           taxAmount: order.taxAmount,
           total: order.total,
+          currency: order.currency,
         }}
       />
     </>

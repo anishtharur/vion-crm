@@ -1,5 +1,6 @@
 import type { Client, Invoice, Payment, Settings } from "@/lib/db/schema";
 import { amountInWords, formatDate, formatMoney } from "@/lib/utils/format";
+import { currencySymbol } from "@/lib/utils/currency";
 
 /** Printable Payment Receipt in the Vion Labs green template. */
 export function ReceiptView({
@@ -15,22 +16,26 @@ export function ReceiptView({
   invoice: Invoice;
   balance: number;
 }) {
-  const sym = settings.currencySymbol;
+  const code = invoice.currency;
+  const sym = currencySymbol(code);
 
   return (
     <div className="doc-paper mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-white text-foreground shadow-[var(--shadow-card)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
       {/* Letterhead */}
       <div className="flex flex-wrap items-start justify-between gap-6 px-8 pt-8 sm:px-10">
         <div className="flex items-start gap-3">
-          <span className="print-exact flex h-11 w-11 items-center justify-center rounded-xl bg-[#06312e] font-display text-2xl font-bold text-[#7df4d7]">
-            V
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={settings.logoUrl || "/assets/vion-logo-gradient.svg"}
+            alt={`${settings.companyName} logo`}
+            className="h-11 w-auto"
+          />
           <div>
-            <p className="font-display text-xl font-bold uppercase tracking-tight text-[#06312e]">
+            <p className="font-display text-xl font-bold uppercase tracking-tight text-q-green">
               {settings.companyName}
             </p>
             {settings.tagline ? (
-              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#3a8f7c]">
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-q-green-mid">
                 {settings.tagline}
               </p>
             ) : null}
@@ -45,11 +50,11 @@ export function ReceiptView({
       </div>
 
       {/* Title band */}
-      <div className="print-exact mt-6 flex items-center justify-between gap-4 bg-[#06312e] px-8 py-4 text-white sm:px-10">
+      <div className="print-exact mt-6 flex items-center justify-between gap-4 bg-q-green px-8 py-4 text-white sm:px-10">
         <h1 className="font-display text-2xl font-semibold uppercase tracking-[0.12em]">
           Payment Receipt
         </h1>
-        <div className="text-right text-xs leading-relaxed text-[#bfeee1]">
+        <div className="text-right text-xs leading-relaxed text-q-muted">
           <p>Ref: {payment.number || `#${payment.id}`}</p>
           <p>Date: {formatDate(payment.paidOn)}</p>
         </div>
@@ -58,7 +63,7 @@ export function ReceiptView({
       <div className="px-8 sm:px-10">
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-border p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#3a8f7c]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-q-green-mid">
               Received from
             </p>
             <div className="mt-1.5 space-y-0.5 text-sm text-muted-foreground">
@@ -68,7 +73,7 @@ export function ReceiptView({
             </div>
           </div>
           <div className="rounded-lg border border-border p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#3a8f7c]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-q-green-mid">
               Received against
             </p>
             <div className="mt-1.5 space-y-0.5 text-sm text-muted-foreground">
@@ -82,18 +87,18 @@ export function ReceiptView({
         </div>
 
         {/* Amount band */}
-        <div className="print-exact mt-8 flex items-center justify-between rounded-lg bg-[#06312e] px-5 py-4 text-white">
+        <div className="print-exact mt-8 flex items-center justify-between rounded-lg bg-q-green px-5 py-4 text-white">
           <span className="font-display text-sm font-semibold uppercase tracking-wide">
             Amount received
           </span>
-          <span className="font-display text-2xl font-semibold tabular-nums text-[#7df4d7]">
-            {settings.currencyCode} {formatMoney(payment.amount, sym).replace(sym, "")}
+          <span className="font-display text-2xl font-semibold tabular-nums text-q-mint-bright">
+            {code} {formatMoney(payment.amount, sym).replace(sym, "")}
           </span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           Amount in words:{" "}
           <span className="font-medium text-foreground">
-            {amountInWords(payment.amount, settings.currencyCode)}
+            {amountInWords(payment.amount, code)}
           </span>
         </p>
 

@@ -29,7 +29,7 @@ export function StatusControl({
             await action(next);
           });
         }}
-        className="h-9 rounded-lg border border-input bg-surface px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+        className="h-9 rounded-md border border-input bg-surface px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       >
         {statuses.map((s) => (
           <option key={s} value={s}>

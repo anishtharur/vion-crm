@@ -4,6 +4,7 @@ import { createQuote } from "@/lib/actions/quotes";
 import { listClientOptions } from "@/lib/data/clients";
 import { getSettings } from "@/lib/data/settings";
 import { QUOTE_STATUSES } from "@/lib/db/schema";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 import { addDays, todayISO } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function NewQuotePage({
         kind="quote"
         action={createQuote}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={QUOTE_STATUSES}
         cancelHref="/quotes"
@@ -34,6 +35,7 @@ export default async function NewQuotePage({
           clientId: clientId ? Number(clientId) : undefined,
           issueDate,
           secondaryDate: addDays(issueDate, settings.quoteValidityDays),
+          currency: settings.currencyCode,
           discount: 0,
           taxRate: settings.defaultTaxRate,
           notes: "",

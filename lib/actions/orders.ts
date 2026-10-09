@@ -36,6 +36,7 @@ function parse(formData: FormData) {
   return orderSchema.safeParse({
     clientId: formData.get("clientId"),
     issueDate: formData.get("issueDate"),
+    currency: formData.get("currency") ?? "USD",
     status: formData.get("status") ?? "draft",
     deliveryTime: formData.get("deliveryTime") ?? "",
     subject: formData.get("subject") ?? "",
@@ -86,6 +87,7 @@ export async function createOrder(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         deliveryTime: data.deliveryTime,
         subject: data.subject,
         projectName: data.projectName,
@@ -125,6 +127,7 @@ export async function updateOrder(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         deliveryTime: data.deliveryTime,
         subject: data.subject,
         projectName: data.projectName,
@@ -172,6 +175,13 @@ export async function deleteOrder(
   redirect("/orders");
 }
 
+/** Delete an order from the list (stays on the list; no redirect). */
+export async function deleteOrderRow(id: number): Promise<FormState> {
+  db.delete(orders).where(eq(orders.id, id)).run();
+  revalidatePath("/orders");
+  return { ok: true };
+}
+
 /** Create a Pro-forma Invoice from an order, copying items and totals. */
 export async function convertOrderToProforma(id: number): Promise<FormState> {
   const settings = getSettings();
@@ -195,6 +205,7 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
         orderId: order.id,
         status: "draft",
         issueDate,
+        currency: order.currency,
         validUntil: addDays(issueDate, settings.quoteValidityDays),
         subject: order.subject,
         projectName: order.projectName,
@@ -244,6 +255,7 @@ export async function convertOrderToInvoice(id: number): Promise<FormState> {
         orderId: order.id,
         status: "draft",
         issueDate,
+        currency: order.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
         notes: order.notes,
         terms: order.terms || settings.paymentTerms,

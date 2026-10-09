@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 
 import { buttonClass } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { FormState } from "@/lib/validation/schemas";
 
 /**
@@ -26,19 +27,24 @@ export function ActionButton({
   confirm?: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const { confirm: ask, alert } = useConfirm();
+
+  async function onClick() {
+    if (confirm && !(await ask({ title: label, message: confirm }))) return;
+    startTransition(async () => {
+      const res = await action();
+      if (res && !res.ok && res.message) {
+        await alert({ title: "Couldn’t complete", message: res.message });
+      }
+    });
+  }
 
   return (
     <button
       type="button"
       disabled={pending}
       className={buttonClass(variant, "md")}
-      onClick={() => {
-        if (confirm && !window.confirm(confirm)) return;
-        startTransition(async () => {
-          const res = await action();
-          if (res && !res.ok && res.message) window.alert(res.message);
-        });
-      }}
+      onClick={onClick}
     >
       {icon}
       {pending ? pendingLabel ?? "Working…" : label}

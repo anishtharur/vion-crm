@@ -4,6 +4,7 @@ import { createProforma } from "@/lib/actions/proformas";
 import { listClientOptions } from "@/lib/data/clients";
 import { getSettings } from "@/lib/data/settings";
 import { PROFORMA_STATUSES } from "@/lib/db/schema";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 import { addDays, todayISO } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function NewProformaPage({
         kind="proforma"
         action={createProforma}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={PROFORMA_STATUSES}
         cancelHref="/proformas"
@@ -34,6 +35,7 @@ export default async function NewProformaPage({
           clientId: clientId ? Number(clientId) : undefined,
           issueDate,
           secondaryDate: addDays(issueDate, settings.quoteValidityDays),
+          currency: settings.currencyCode,
           discount: 0,
           taxRate: settings.defaultTaxRate,
           notes: "",

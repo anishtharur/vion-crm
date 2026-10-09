@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
+import { CURRENCY_CODES, currencySymbol } from "@/lib/utils/currency";
 import {
   flattenErrors,
   settingsSchema,
@@ -14,6 +15,16 @@ export async function updateSettings(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  // Base currency drives the symbol; per-currency exchange rates are collected
+  // from `rate_<CODE>` inputs into a JSON map (base is always 1, so it's skipped).
+  const baseCode = String(formData.get("currencyCode") ?? "USD");
+  const rates: Record<string, number> = {};
+  for (const code of CURRENCY_CODES) {
+    if (code === baseCode) continue;
+    const n = Number(formData.get(`rate_${code}`));
+    if (Number.isFinite(n) && n > 0) rates[code] = n;
+  }
+
   const parsed = settingsSchema.safeParse({
     companyName: formData.get("companyName"),
     tagline: formData.get("tagline") ?? "",
@@ -22,8 +33,9 @@ export async function updateSettings(
     address: formData.get("address") ?? "",
     website: formData.get("website") ?? "",
     gstin: formData.get("gstin") ?? "",
-    currencySymbol: formData.get("currencySymbol"),
-    currencyCode: formData.get("currencyCode") ?? "USD",
+    currencySymbol: currencySymbol(baseCode),
+    currencyCode: baseCode,
+    exchangeRates: JSON.stringify(rates),
     defaultTaxRate: formData.get("defaultTaxRate") ?? 0,
     taxLabel: formData.get("taxLabel"),
     quotePrefix: formData.get("quotePrefix"),

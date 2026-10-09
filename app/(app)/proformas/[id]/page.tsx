@@ -48,7 +48,7 @@ export default async function ProformaDetailPage({
               Edit
             </Link>
             <a
-              href={`/print/proformas/${proforma.id}`}
+              href={`/api/pdf/proformas/${proforma.id}?name=${encodeURIComponent(proforma.number)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass("outline", "md")}
@@ -94,6 +94,7 @@ export default async function ProformaDetailPage({
           taxRate: proforma.taxRate,
           taxAmount: proforma.taxAmount,
           total: proforma.total,
+          currency: proforma.currency,
         }}
       />
     </div>

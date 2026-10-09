@@ -50,7 +50,7 @@ export default async function QuoteDetailPage({
               Edit
             </Link>
             <a
-              href={`/print/quotes/${quote.id}`}
+              href={`/api/pdf/quotes/${quote.id}?name=${encodeURIComponent(quote.number)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass("outline", "md")}
@@ -112,6 +112,7 @@ export default async function QuoteDetailPage({
           taxRate: quote.taxRate,
           taxAmount: quote.taxAmount,
           total: quote.total,
+          currency: quote.currency,
         }}
       />
     </div>

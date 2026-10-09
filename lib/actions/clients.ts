@@ -86,3 +86,20 @@ export async function deleteClient(
   revalidatePath("/clients");
   redirect("/clients");
 }
+
+/** Delete a client from the list, guarding against orphaning documents. */
+export async function deleteClientRow(id: number): Promise<FormState> {
+  const quoteCount =
+    db.select({ c: sql<number>`count(*)` }).from(quotes).where(eq(quotes.clientId, id)).get()?.c ?? 0;
+  const invoiceCount =
+    db.select({ c: sql<number>`count(*)` }).from(invoices).where(eq(invoices.clientId, id)).get()?.c ?? 0;
+  if (quoteCount > 0 || invoiceCount > 0) {
+    return {
+      ok: false,
+      message: "This client has quotes or invoices. Delete those first.",
+    };
+  }
+  db.delete(clients).where(eq(clients.id, id)).run();
+  revalidatePath("/clients");
+  return { ok: true };
+}

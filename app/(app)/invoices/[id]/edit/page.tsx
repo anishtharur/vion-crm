@@ -6,6 +6,7 @@ import { updateInvoice } from "@/lib/actions/invoices";
 import { listClientOptions } from "@/lib/data/clients";
 import { getInvoice } from "@/lib/data/invoices";
 import { getSettings } from "@/lib/data/settings";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 import { INVOICE_EDITABLE_STATUSES } from "@/lib/utils/invoice-status";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function EditInvoicePage({
         kind="invoice"
         action={action}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={INVOICE_EDITABLE_STATUSES}
         cancelHref={`/invoices/${invoice.id}`}
@@ -40,6 +41,7 @@ export default async function EditInvoicePage({
           clientId: invoice.clientId,
           issueDate: invoice.issueDate,
           secondaryDate: invoice.dueDate,
+          currency: invoice.currency,
           discount: invoice.discount,
           taxRate: invoice.taxRate,
           notes: invoice.notes,

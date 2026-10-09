@@ -2,20 +2,26 @@ import Link from "next/link";
 import { Plus, Search, UserPlus, Users } from "lucide-react";
 
 import { buttonClass } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Td, Th, TableCard } from "@/components/ui/table";
+import { deleteClientRow } from "@/lib/actions/clients";
 import { listClients } from "@/lib/data/clients";
+import { parseListParams } from "@/lib/data/list-params";
 
 export const dynamic = "force-dynamic";
+
+const SORTABLE = ["name", "company", "email", "quotes", "invoices"];
 
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = await searchParams;
-  const clients = listClients(q);
+  const sp = await searchParams;
+  const params = parseListParams(sp, { sortable: SORTABLE });
+  const { rows, total, page, pageCount } = listClients(params);
+  const q = params.q;
 
   return (
     <div className="space-y-6">
@@ -35,14 +41,14 @@ export default async function ClientsPage({
         <input
           type="search"
           name="q"
-          defaultValue={q ?? ""}
+          defaultValue={q}
           placeholder="Search name, company or email…"
-          className="h-10 w-full rounded-lg border border-input bg-surface pl-9 pr-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-10 w-full rounded-md border border-input bg-surface pl-9 pr-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </form>
 
-      {clients.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+      {total === 0 ? (
+        <div className="rounded-lg border border-border bg-surface shadow-[var(--shadow-card)]">
           <EmptyState
             icon={q ? Search : Users}
             title={q ? "No matching clients" : "No clients yet"}
@@ -62,35 +68,36 @@ export default async function ClientsPage({
           />
         </div>
       ) : (
-        <TableCard>
-          <thead>
-            <tr>
-              <Th>Name</Th>
-              <Th>Company</Th>
-              <Th>Email</Th>
-              <Th align="right">Quotes</Th>
-              <Th align="right">Invoices</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((c) => (
-              <tr key={c.id} className="transition-colors hover:bg-surface-muted/50">
-                <Td>
-                  <Link
-                    href={`/clients/${c.id}`}
-                    className="font-medium text-foreground hover:text-primary"
-                  >
-                    {c.name}
-                  </Link>
-                </Td>
-                <Td className="text-muted-foreground">{c.company || "—"}</Td>
-                <Td className="text-muted-foreground">{c.email || "—"}</Td>
-                <Td align="right">{c.quoteCount}</Td>
-                <Td align="right">{c.invoiceCount}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableCard>
+        <DataTable
+          recordNoun="Clients"
+          sort={{ key: params.sort, dir: params.dir }}
+          page={page}
+          pageCount={pageCount}
+          total={total}
+          columns={[
+            { header: "Name", sortKey: "name" },
+            { header: "Company", sortKey: "company" },
+            { header: "Email", sortKey: "email" },
+            { header: "Quotes", align: "right", sortKey: "quotes" },
+            { header: "Invoices", align: "right", sortKey: "invoices" },
+          ]}
+          rows={rows.map((c) => ({
+            id: c.id,
+            delete: {
+              action: deleteClientRow.bind(null, c.id),
+              confirm: `Delete ${c.name}? This cannot be undone.`,
+            },
+            cells: [
+              <Link key="n" href={`/clients/${c.id}`} className="font-medium text-foreground hover:text-primary">
+                {c.name}
+              </Link>,
+              <span key="co" className="text-muted-foreground">{c.company || "—"}</span>,
+              <span key="e" className="text-muted-foreground">{c.email || "—"}</span>,
+              <span key="q">{c.quoteCount}</span>,
+              <span key="i">{c.invoiceCount}</span>,
+            ],
+          }))}
+        />
       )}
     </div>
   );

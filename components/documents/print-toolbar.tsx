@@ -13,6 +13,8 @@ import { buttonClass } from "@/components/ui/button";
  */
 export function PrintToolbar({ backHref }: { backHref: string }) {
   useEffect(() => {
+    // Skip the auto print dialog when the page is being rendered to PDF server-side.
+    if (new URLSearchParams(window.location.search).get("pdf") === "1") return;
     // Defer so fonts/layout settle before the print dialog opens.
     const t = setTimeout(() => window.print(), 400);
     return () => clearTimeout(t);

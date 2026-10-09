@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,11 +11,23 @@ import {
   type Quote,
   type QuoteItem,
 } from "@/lib/db/schema";
+import { paged, type ListParams, type Paged } from "./list-params";
 
 export type QuoteListRow = Quote & { clientName: string; clientCompany: string };
 
-export function listQuotes(): QuoteListRow[] {
-  return db
+export const QUOTE_SORT = {
+  number: quotes.number,
+  client: clients.name,
+  issued: quotes.issueDate,
+  total: quotes.total,
+} as const;
+
+export function listQuotes(params: ListParams): Paged<QuoteListRow> {
+  const col = (params.sort && QUOTE_SORT[params.sort as keyof typeof QUOTE_SORT]) || quotes.createdAt;
+  const orderBy = params.dir === "asc" ? asc(col) : desc(col);
+
+  const total = db.select({ v: count() }).from(quotes).get()?.v ?? 0;
+  const rows = db
     .select({
       quote: quotes,
       clientName: clients.name,
@@ -23,9 +35,13 @@ export function listQuotes(): QuoteListRow[] {
     })
     .from(quotes)
     .innerJoin(clients, eq(quotes.clientId, clients.id))
-    .orderBy(desc(quotes.createdAt))
+    .orderBy(orderBy)
+    .limit(params.pageSize)
+    .offset(params.offset)
     .all()
     .map((r) => ({ ...r.quote, clientName: r.clientName, clientCompany: r.clientCompany }));
+
+  return paged(rows, total, params);
 }
 
 export type QuoteWithItems = {

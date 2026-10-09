@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils/cn";
 /** Card-wrapped, horizontally-scrollable table container. */
 export function TableCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-card)]">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">{children}</table>
+        <table className="w-full border-collapse text-[13px]">{children}</table>
       </div>
     </div>
   );
@@ -23,7 +23,7 @@ export function Th({
   return (
     <th
       className={cn(
-        "border-b border-border bg-surface-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+        "border-b border-border bg-surface-muted/60 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground",
         align === "right" && "text-right",
         align === "center" && "text-center",
         align === "left" && "text-left",
@@ -47,7 +47,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-b border-border/70 px-4 py-3 text-foreground",
+        "border-b border-border/60 px-3 py-2 text-foreground",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className,

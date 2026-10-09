@@ -16,55 +16,47 @@ export type NavItem = {
   icon: LucideIcon;
   /** Match nested routes (e.g. /clients/3) as active. */
   match?: (pathname: string) => boolean;
+  /** Optional small badge (e.g. a count or "NEW"). */
+  badge?: string;
 };
 
-export const navItems: NavItem[] = [
+export type NavGroup = {
+  /** Uppercase section label; omitted for the top group. */
+  label?: string;
+  items: NavItem[];
+};
+
+export const navGroups: NavGroup[] = [
   {
-    href: "/",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    match: (p) => p === "/",
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard, match: (p) => p === "/" },
+    ],
   },
   {
-    href: "/clients",
-    label: "Clients",
-    icon: Users,
-    match: (p) => p.startsWith("/clients"),
+    label: "Sales",
+    items: [
+      { href: "/quotes", label: "Quotes", icon: FileText, match: (p) => p.startsWith("/quotes") },
+      { href: "/orders", label: "Orders", icon: ClipboardList, match: (p) => p.startsWith("/orders") },
+      {
+        href: "/proformas",
+        label: "Pro-formas",
+        icon: FileSpreadsheet,
+        match: (p) => p.startsWith("/proformas"),
+      },
+      { href: "/invoices", label: "Invoices", icon: ReceiptText, match: (p) => p.startsWith("/invoices") },
+      { href: "/receipts", label: "Receipts", icon: Receipt, match: (p) => p.startsWith("/receipts") },
+    ],
   },
   {
-    href: "/quotes",
-    label: "Quotes",
-    icon: FileText,
-    match: (p) => p.startsWith("/quotes"),
+    label: "Records",
+    items: [
+      { href: "/clients", label: "Clients", icon: Users, match: (p) => p.startsWith("/clients") },
+    ],
   },
   {
-    href: "/orders",
-    label: "Orders",
-    icon: ClipboardList,
-    match: (p) => p.startsWith("/orders"),
-  },
-  {
-    href: "/proformas",
-    label: "Pro-formas",
-    icon: FileSpreadsheet,
-    match: (p) => p.startsWith("/proformas"),
-  },
-  {
-    href: "/invoices",
-    label: "Invoices",
-    icon: ReceiptText,
-    match: (p) => p.startsWith("/invoices"),
-  },
-  {
-    href: "/receipts",
-    label: "Receipts",
-    icon: Receipt,
-    match: (p) => p.startsWith("/receipts"),
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: Settings,
-    match: (p) => p.startsWith("/settings"),
+    label: "Account",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings, match: (p) => p.startsWith("/settings") },
+    ],
   },
 ];

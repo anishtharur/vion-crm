@@ -17,6 +17,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { getDashboard } from "@/lib/data/dashboard";
 import { getSettings } from "@/lib/data/settings";
+import { currencySymbol } from "@/lib/utils/currency";
 import { formatDate, formatMoney } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -109,9 +110,9 @@ export default async function DashboardPage() {
                 clientName: q.clientName,
                 status: q.status,
                 amount: q.total,
+                currency: q.currency,
                 date: q.issueDate,
               }))}
-              sym={sym}
             />
           </CardBody>
         </Card>
@@ -135,9 +136,9 @@ export default async function DashboardPage() {
                 clientName: inv.clientName,
                 status: inv.status,
                 amount: inv.total,
+                currency: inv.currency,
                 date: inv.dueDate,
               }))}
-              sym={sym}
             />
           </CardBody>
         </Card>
@@ -148,7 +149,6 @@ export default async function DashboardPage() {
 
 function RecentList({
   rows,
-  sym,
   empty,
 }: {
   rows: {
@@ -158,9 +158,9 @@ function RecentList({
     clientName: string;
     status: string;
     amount: number;
+    currency: string;
     date: string;
   }[];
-  sym: string;
   empty: string;
 }) {
   if (rows.length === 0) {
@@ -183,7 +183,7 @@ function RecentList({
             <div className="flex shrink-0 items-center gap-3">
               <StatusBadge status={r.status} />
               <span className="w-24 text-right font-medium tabular-nums">
-                {formatMoney(r.amount, sym)}
+                {formatMoney(r.amount, currencySymbol(r.currency))}
               </span>
             </div>
           </Link>

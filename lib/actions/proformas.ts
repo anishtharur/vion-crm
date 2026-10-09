@@ -30,6 +30,7 @@ function parse(formData: FormData) {
   return proformaSchema.safeParse({
     clientId: formData.get("clientId"),
     issueDate: formData.get("issueDate"),
+    currency: formData.get("currency") ?? "USD",
     validUntil: formData.get("validUntil") ?? "",
     status: formData.get("status") ?? "draft",
     subject: formData.get("subject") ?? "",
@@ -80,6 +81,7 @@ export async function createProforma(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         validUntil: data.validUntil || "",
         subject: data.subject,
         projectName: data.projectName,
@@ -119,6 +121,7 @@ export async function updateProforma(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         validUntil: data.validUntil || "",
         subject: data.subject,
         projectName: data.projectName,
@@ -169,6 +172,13 @@ export async function deleteProforma(
   redirect("/proformas");
 }
 
+/** Delete a pro-forma from the list (stays on the list; no redirect). */
+export async function deleteProformaRow(id: number): Promise<FormState> {
+  db.delete(proformas).where(eq(proformas.id, id)).run();
+  revalidatePath("/proformas");
+  return { ok: true };
+}
+
 /** Create an Invoice from a pro-forma, copying items and totals. */
 export async function convertProformaToInvoice(id: number): Promise<FormState> {
   const settings = getSettings();
@@ -193,6 +203,7 @@ export async function convertProformaToInvoice(id: number): Promise<FormState> {
         proformaId: proforma.id,
         status: "draft",
         issueDate,
+        currency: proforma.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
         notes: proforma.notes,
         terms: proforma.terms || settings.paymentTerms,

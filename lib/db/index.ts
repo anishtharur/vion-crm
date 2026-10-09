@@ -16,7 +16,10 @@ const globalForDb = globalThis as unknown as {
 };
 
 function createConnection() {
-  const file = path.join(process.cwd(), "vion.db");
+  // Configurable via DATABASE_PATH so the same build runs against a local file in
+  // dev and a mounted volume in prod (e.g. /data/vion.db on Railway) with no code
+  // change — just the env var. Falls back to ./vion.db at the repo root.
+  const file = process.env.DATABASE_PATH ?? path.join(process.cwd(), "vion.db");
   const sqlite = new Database(file);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");

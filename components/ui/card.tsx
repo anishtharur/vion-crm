@@ -12,7 +12,7 @@ export function Card({
       className={cn(
         // min-w-0 lets the card shrink inside grid/flex parents instead of
         // forcing horizontal overflow on small screens.
-        "min-w-0 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]",
+        "min-w-0 rounded-lg border border-border bg-surface shadow-[var(--shadow-card)]",
         className,
       )}
     >

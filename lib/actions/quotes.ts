@@ -37,6 +37,7 @@ function parse(formData: FormData) {
   return quoteSchema.safeParse({
     clientId: formData.get("clientId"),
     issueDate: formData.get("issueDate"),
+    currency: formData.get("currency") ?? "USD",
     validUntil: formData.get("validUntil") ?? "",
     status: formData.get("status") ?? "draft",
     subject: formData.get("subject") ?? "",
@@ -69,6 +70,7 @@ export async function createQuote(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         validUntil: data.validUntil || "",
         subject: data.subject,
         projectName: data.projectName,
@@ -109,6 +111,7 @@ export async function updateQuote(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         validUntil: data.validUntil || "",
         subject: data.subject,
         projectName: data.projectName,
@@ -160,6 +163,13 @@ export async function deleteQuote(
   redirect("/quotes");
 }
 
+/** Delete a quote from the list (stays on the list; no redirect). */
+export async function deleteQuoteRow(id: number): Promise<FormState> {
+  db.delete(quotes).where(eq(quotes.id, id)).run();
+  revalidatePath("/quotes");
+  return { ok: true };
+}
+
 /** Create an invoice from an existing quote, copying line items and totals. */
 export async function convertQuoteToInvoice(id: number): Promise<FormState> {
   const settings = getSettings();
@@ -182,6 +192,7 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
         quoteId: quote.id,
         status: "draft",
         issueDate,
+        currency: quote.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
         notes: quote.notes,
         terms: quote.terms || settings.paymentTerms,
@@ -245,6 +256,7 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
         quoteId: quote.id,
         status: "draft",
         issueDate,
+        currency: quote.currency,
         deliveryTime: "",
         subject: quote.subject,
         projectName: quote.projectName,
@@ -296,6 +308,7 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
         quoteId: quote.id,
         status: "draft",
         issueDate,
+        currency: quote.currency,
         validUntil: addDays(issueDate, settings.quoteValidityDays),
         subject: quote.subject,
         projectName: quote.projectName,

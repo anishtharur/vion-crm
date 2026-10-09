@@ -7,6 +7,7 @@ import { listClientOptions } from "@/lib/data/clients";
 import { getQuote } from "@/lib/data/quotes";
 import { getSettings } from "@/lib/data/settings";
 import { QUOTE_STATUSES } from "@/lib/db/schema";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function EditQuotePage({
         kind="quote"
         action={action}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={QUOTE_STATUSES}
         cancelHref={`/quotes/${quote.id}`}
@@ -40,6 +41,7 @@ export default async function EditQuotePage({
           clientId: quote.clientId,
           issueDate: quote.issueDate,
           secondaryDate: quote.validUntil,
+          currency: quote.currency,
           discount: quote.discount,
           taxRate: quote.taxRate,
           notes: quote.notes,

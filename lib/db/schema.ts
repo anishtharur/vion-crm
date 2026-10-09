@@ -27,7 +27,10 @@ export const settings = sqliteTable("settings", {
   gstin: text("gstin").notNull().default(""),
   logoUrl: text("logo_url").notNull().default(""),
   currencySymbol: text("currency_symbol").notNull().default("$"),
+  /** Base / home currency. Document amounts are converted into this for reporting. */
   currencyCode: text("currency_code").notNull().default("USD"),
+  /** JSON map { [code]: unitsOfBasePerOneUnit }, e.g. {"USD":83} when base is INR. */
+  exchangeRates: text("exchange_rates").notNull().default("{}"),
   /** Default GST / tax percentage, e.g. 18 for 18%. */
   defaultTaxRate: real("default_tax_rate").notNull().default(0),
   taxLabel: text("tax_label").notNull().default("GST"),
@@ -115,6 +118,7 @@ export const quotes = sqliteTable("quotes", {
   taxRate: real("tax_rate").notNull().default(0),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
   ...timestamps,
 });
 
@@ -171,6 +175,7 @@ export const orders = sqliteTable("orders", {
   taxRate: real("tax_rate").notNull().default(0),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
   ...timestamps,
 });
 
@@ -221,6 +226,7 @@ export const proformas = sqliteTable("proformas", {
   taxRate: real("tax_rate").notNull().default(0),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
   ...timestamps,
 });
 
@@ -273,6 +279,7 @@ export const invoices = sqliteTable("invoices", {
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   amountPaid: real("amount_paid").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
   ...timestamps,
 });
 

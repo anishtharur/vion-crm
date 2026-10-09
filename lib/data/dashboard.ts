@@ -9,6 +9,8 @@ import {
   payments,
   quotes,
 } from "@/lib/db/schema";
+import { getSettings } from "@/lib/data/settings";
+import { convertToBase, parseRates } from "@/lib/utils/currency";
 import { displayInvoiceStatus } from "@/lib/utils/invoice-status";
 import { round2 } from "@/lib/utils/money";
 import { todayISO } from "@/lib/utils/format";
@@ -28,6 +30,7 @@ export type DashboardData = {
     clientName: string;
     status: string;
     total: number;
+    currency: string;
     issueDate: string;
   }[];
   recentInvoices: {
@@ -37,12 +40,20 @@ export type DashboardData = {
     status: string;
     total: number;
     balance: number;
+    currency: string;
     dueDate: string;
   }[];
 };
 
 export function getDashboard(): DashboardData {
   const today = todayISO();
+
+  // Everything on the dashboard rolls up into the base currency using the
+  // exchange rates from settings, so mixed-currency documents sum correctly.
+  const { currencyCode: baseCode, exchangeRates } = getSettings();
+  const rates = parseRates(exchangeRates);
+  const toBase = (amount: number, code: string | null | undefined) =>
+    convertToBase(amount, code, baseCode, rates);
 
   const clientsCount =
     db.select({ c: sql<number>`count(*)` }).from(clients).get()?.c ?? 0;
@@ -54,12 +65,13 @@ export function getDashboard(): DashboardData {
       .where(sql`${quotes.status} IN ('draft','sent')`)
       .get()?.c ?? 0;
 
+  const pendingQuotes = db
+    .select({ total: quotes.total, currency: quotes.currency })
+    .from(quotes)
+    .where(sql`${quotes.status} IN ('draft','sent')`)
+    .all();
   const quotesTotalValue = round2(
-    db
-      .select({ s: sql<number>`COALESCE(SUM(${quotes.total}), 0)` })
-      .from(quotes)
-      .where(sql`${quotes.status} IN ('draft','sent')`)
-      .get()?.s ?? 0,
+    pendingQuotes.reduce((sum, q) => sum + toBase(q.total ?? 0, q.currency), 0),
   );
 
   // Outstanding = unpaid balance across all invoices.
@@ -68,13 +80,14 @@ export function getDashboard(): DashboardData {
   let overdueAmount = 0;
   const statusMap = new Map<string, { count: number; amount: number }>();
   for (const inv of allInvoices) {
-    const balance = round2((inv.total ?? 0) - (inv.amountPaid ?? 0));
-    if (balance > 0) outstanding += balance;
+    const balanceRaw = round2((inv.total ?? 0) - (inv.amountPaid ?? 0));
+    const balance = toBase(balanceRaw, inv.currency);
+    if (balanceRaw > 0) outstanding += balance;
     const ds = displayInvoiceStatus(inv, today);
     if (ds === "overdue") overdueAmount += balance;
     const entry = statusMap.get(ds) ?? { count: 0, amount: 0 };
     entry.count += 1;
-    entry.amount += inv.total ?? 0;
+    entry.amount += toBase(inv.total ?? 0, inv.currency);
     statusMap.set(ds, entry);
   }
   outstanding = round2(outstanding);
@@ -85,16 +98,23 @@ export function getDashboard(): DashboardData {
     .filter((s) => statusMap.has(s))
     .map((s) => ({ status: s, count: statusMap.get(s)!.count, amount: round2(statusMap.get(s)!.amount) }));
 
-  // Payments grouped by yyyy-mm.
+  // Payments grouped by yyyy-mm, each converted from its invoice's currency.
   const paymentRows = db
     .select({
-      ym: sql<string>`substr(${payments.paidOn}, 1, 7)`,
-      sum: sql<number>`COALESCE(SUM(${payments.amount}), 0)`,
+      paidOn: payments.paidOn,
+      amount: payments.amount,
+      currency: invoices.currency,
     })
     .from(payments)
-    .groupBy(sql`substr(${payments.paidOn}, 1, 7)`)
+    .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
     .all();
-  const paymentByMonth = new Map(paymentRows.map((r) => [r.ym, round2(r.sum)]));
+  const paymentByMonth = new Map<string, number>();
+  for (const p of paymentRows) {
+    const ym = (p.paidOn ?? "").slice(0, 7);
+    if (!ym) continue;
+    const prev = paymentByMonth.get(ym) ?? 0;
+    paymentByMonth.set(ym, round2(prev + toBase(p.amount ?? 0, p.currency)));
+  }
 
   const monthly = lastSixMonths(today).map(({ ym, label }) => ({
     ym,
@@ -111,6 +131,7 @@ export function getDashboard(): DashboardData {
       clientName: clients.name,
       status: quotes.status,
       total: quotes.total,
+      currency: quotes.currency,
       issueDate: quotes.issueDate,
     })
     .from(quotes)
@@ -127,6 +148,7 @@ export function getDashboard(): DashboardData {
       status: invoices.status,
       total: invoices.total,
       amountPaid: invoices.amountPaid,
+      currency: invoices.currency,
       dueDate: invoices.dueDate,
     })
     .from(invoices)
@@ -144,6 +166,7 @@ export function getDashboard(): DashboardData {
       ),
       total: inv.total,
       balance: round2((inv.total ?? 0) - (inv.amountPaid ?? 0)),
+      currency: inv.currency,
       dueDate: inv.dueDate,
     }));
 

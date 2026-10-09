@@ -5,6 +5,6 @@ export default {
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: "./vion.db",
+    url: process.env.DATABASE_PATH ?? "./vion.db",
   },
 } satisfies Config;

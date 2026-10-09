@@ -20,7 +20,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Td, Th } from "@/components/ui/table";
 import { deleteClient } from "@/lib/actions/clients";
 import { getClientDetail } from "@/lib/data/clients";
-import { getSettings } from "@/lib/data/settings";
+import { currencySymbol } from "@/lib/utils/currency";
 import { formatDate, formatMoney } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +35,6 @@ export default async function ClientDetailPage({
   if (!detail) notFound();
 
   const { client, quotes, invoices } = detail;
-  const settings = getSettings();
-  const sym = settings.currencySymbol;
   const deleteAction = deleteClient.bind(null, client.id);
 
   return (
@@ -109,8 +107,8 @@ export default async function ClientDetailPage({
                   date: q.issueDate,
                   status: q.status,
                   total: q.total,
+                  currency: q.currency,
                 }))}
-                sym={sym}
               />
             )}
           </Card>
@@ -141,8 +139,8 @@ export default async function ClientDetailPage({
                   date: inv.issueDate,
                   status: inv.status,
                   total: inv.total,
+                  currency: inv.currency,
                 }))}
-                sym={sym}
               />
             )}
           </Card>
@@ -181,10 +179,16 @@ function ContactRow({
 
 function DocTable({
   rows,
-  sym,
 }: {
-  rows: { id: number; href: string; number: string; date: string; status: string; total: number }[];
-  sym: string;
+  rows: {
+    id: number;
+    href: string;
+    number: string;
+    date: string;
+    status: string;
+    total: number;
+    currency: string;
+  }[];
 }) {
   return (
     <div className="overflow-x-auto">
@@ -210,7 +214,7 @@ function DocTable({
                 <StatusBadge status={r.status} />
               </Td>
               <Td align="right" className="font-medium">
-                {formatMoney(r.total, sym)}
+                {formatMoney(r.total, currencySymbol(r.currency))}
               </Td>
             </tr>
           ))}

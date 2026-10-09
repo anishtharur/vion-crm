@@ -1,18 +1,22 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { FieldError, Hint, Input, Label, Textarea } from "@/components/ui/field";
+import { FieldError, Hint, Input, Label, Select, Textarea } from "@/components/ui/field";
 import type { Settings } from "@/lib/db/schema";
 import { updateSettings } from "@/lib/actions/settings";
+import { CURRENCY_OPTIONS, parseRates } from "@/lib/utils/currency";
 import { initialFormState } from "@/lib/validation/schemas";
 
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [state, formAction, pending] = useActionState(updateSettings, initialFormState);
   const errors = state.errors ?? {};
+
+  const [baseCode, setBaseCode] = useState(settings.currencyCode);
+  const initialRates = parseRates(settings.exchangeRates);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -65,15 +69,22 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <CardHeader title="Currency & tax" description="Defaults applied to new documents." />
         <CardBody className="grid gap-5 sm:grid-cols-3">
           <div>
-            <Label htmlFor="currencySymbol" required>
-              Currency symbol
+            <Label htmlFor="currencyCode" required>
+              Base currency
             </Label>
-            <Input id="currencySymbol" name="currencySymbol" defaultValue={settings.currencySymbol} required />
-            <FieldError message={errors.currencySymbol} />
-          </div>
-          <div>
-            <Label htmlFor="currencyCode">Currency code</Label>
-            <Input id="currencyCode" name="currencyCode" defaultValue={settings.currencyCode} />
+            <Select
+              id="currencyCode"
+              name="currencyCode"
+              value={baseCode}
+              onChange={(e) => setBaseCode(e.target.value)}
+            >
+              {CURRENCY_OPTIONS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+            <Hint>New documents default to this; totals roll up to it.</Hint>
           </div>
           <div>
             <Label htmlFor="taxLabel" required>
@@ -95,6 +106,37 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             />
             <FieldError message={errors.defaultTaxRate} />
           </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Exchange rates"
+          description={`Used to convert other currencies into ${baseCode} for dashboard totals.`}
+        />
+        <CardBody className="space-y-4">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {CURRENCY_OPTIONS.filter((c) => c.code !== baseCode).map((c) => (
+              <div key={c.code}>
+                <Label htmlFor={`rate_${c.code}`}>
+                  1 {c.code} = ? {baseCode}
+                </Label>
+                <Input
+                  id={`rate_${c.code}`}
+                  name={`rate_${c.code}`}
+                  type="number"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
+                  defaultValue={initialRates[c.code] ?? ""}
+                  placeholder="e.g. 83"
+                />
+              </div>
+            ))}
+          </div>
+          <Hint>
+            Leave blank to treat a currency 1:1. The base currency ({baseCode}) is always 1.
+          </Hint>
         </CardBody>
       </Card>
 

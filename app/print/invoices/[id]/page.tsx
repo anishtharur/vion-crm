@@ -41,6 +41,7 @@ export default async function PrintInvoicePage({
           taxAmount: invoice.taxAmount,
           total: invoice.total,
           amountPaid: invoice.amountPaid,
+          currency: invoice.currency,
         }}
       />
     </>

@@ -7,6 +7,7 @@ import { listClientOptions } from "@/lib/data/clients";
 import { getProforma } from "@/lib/data/proformas";
 import { getSettings } from "@/lib/data/settings";
 import { PROFORMA_STATUSES } from "@/lib/db/schema";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function EditProformaPage({
         kind="proforma"
         action={action}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={PROFORMA_STATUSES}
         cancelHref={`/proformas/${proforma.id}`}
@@ -40,6 +41,7 @@ export default async function EditProformaPage({
           clientId: proforma.clientId,
           issueDate: proforma.issueDate,
           secondaryDate: proforma.validUntil,
+          currency: proforma.currency,
           discount: proforma.discount,
           taxRate: proforma.taxRate,
           notes: proforma.notes,

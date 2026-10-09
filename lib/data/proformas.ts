@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,14 +11,28 @@ import {
   type Proforma,
   type ProformaItem,
 } from "@/lib/db/schema";
+import { paged, type ListParams, type Paged } from "./list-params";
 
 export type ProformaListRow = Proforma & {
   clientName: string;
   clientCompany: string;
 };
 
-export function listProformas(): ProformaListRow[] {
-  return db
+export const PROFORMA_SORT = {
+  number: proformas.number,
+  client: clients.name,
+  issued: proformas.issueDate,
+  total: proformas.total,
+} as const;
+
+export function listProformas(params: ListParams): Paged<ProformaListRow> {
+  const col =
+    (params.sort && PROFORMA_SORT[params.sort as keyof typeof PROFORMA_SORT]) ||
+    proformas.createdAt;
+  const orderBy = params.dir === "asc" ? asc(col) : desc(col);
+
+  const total = db.select({ v: count() }).from(proformas).get()?.v ?? 0;
+  const rows = db
     .select({
       proforma: proformas,
       clientName: clients.name,
@@ -26,13 +40,17 @@ export function listProformas(): ProformaListRow[] {
     })
     .from(proformas)
     .innerJoin(clients, eq(proformas.clientId, clients.id))
-    .orderBy(desc(proformas.createdAt))
+    .orderBy(orderBy)
+    .limit(params.pageSize)
+    .offset(params.offset)
     .all()
     .map((r) => ({
       ...r.proforma,
       clientName: r.clientName,
       clientCompany: r.clientCompany,
     }));
+
+  return paged(rows, total, params);
 }
 
 export type ProformaWithItems = {

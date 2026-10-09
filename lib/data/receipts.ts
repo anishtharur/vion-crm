@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,30 +11,52 @@ import {
   type Invoice,
   type Payment,
 } from "@/lib/db/schema";
+import { paged, type ListParams, type Paged } from "./list-params";
 
 export type ReceiptListRow = Payment & {
   invoiceNumber: string;
   clientName: string;
+  currency: string;
 };
 
-/** All recorded payments (each is a numbered Payment Receipt), newest first. */
-export function listReceipts(): ReceiptListRow[] {
-  return db
+export const RECEIPT_SORT = {
+  number: payments.number,
+  against: invoices.number,
+  client: clients.name,
+  date: payments.paidOn,
+  amount: payments.amount,
+} as const;
+
+/** All recorded payments (each is a numbered Payment Receipt). */
+export function listReceipts(params: ListParams): Paged<ReceiptListRow> {
+  const col =
+    (params.sort && RECEIPT_SORT[params.sort as keyof typeof RECEIPT_SORT]) ||
+    payments.createdAt;
+  const orderBy = params.dir === "asc" ? asc(col) : desc(col);
+
+  const total = db.select({ v: count() }).from(payments).get()?.v ?? 0;
+  const rows = db
     .select({
       payment: payments,
       invoiceNumber: invoices.number,
       clientName: clients.name,
+      currency: invoices.currency,
     })
     .from(payments)
     .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
     .innerJoin(clients, eq(invoices.clientId, clients.id))
-    .orderBy(desc(payments.createdAt))
+    .orderBy(orderBy)
+    .limit(params.pageSize)
+    .offset(params.offset)
     .all()
     .map((r) => ({
       ...r.payment,
       invoiceNumber: r.invoiceNumber,
       clientName: r.clientName,
+      currency: r.currency,
     }));
+
+  return paged(rows, total, params);
 }
 
 export type ReceiptDetail = {

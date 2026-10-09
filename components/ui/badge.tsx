@@ -34,19 +34,23 @@ export function Badge({
   );
 }
 
-const statusTone: Record<string, Tone> = {
-  draft: "neutral",
-  sent: "blue",
-  accepted: "green",
-  paid: "green",
-  partial: "amber",
-  overdue: "red",
-  rejected: "red",
-  expired: "neutral",
-  confirmed: "green",
-  in_production: "violet",
-  fulfilled: "green",
-  cancelled: "red",
+/**
+ * Solid, filled status pills in the enterprise / Zoho style — saturated colour
+ * fills with white text, keyed by document status.
+ */
+const statusFill: Record<string, string> = {
+  draft: "bg-slate-400",
+  sent: "bg-sky-600",
+  accepted: "bg-emerald-600",
+  paid: "bg-emerald-600",
+  partial: "bg-amber-500",
+  overdue: "bg-rose-600",
+  rejected: "bg-rose-600",
+  expired: "bg-slate-400",
+  confirmed: "bg-emerald-600",
+  in_production: "bg-violet-600",
+  fulfilled: "bg-emerald-600",
+  cancelled: "bg-rose-600",
 };
 
 /** Replace underscores so "in_production" renders as "In production". */
@@ -55,5 +59,14 @@ function statusLabel(status: string): string {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge tone={statusTone[status] ?? "neutral"}>{statusLabel(status)}</Badge>;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium text-white",
+        statusFill[status] ?? "bg-slate-400",
+      )}
+    >
+      {statusLabel(status)}
+    </span>
+  );
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, like, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,41 +11,61 @@ import {
   type Invoice,
   type Quote,
 } from "@/lib/db/schema";
+import { paged, type ListParams, type Paged } from "./list-params";
 
 export type ClientListRow = Client & {
   quoteCount: number;
   invoiceCount: number;
 };
 
-export function listClients(search?: string): ClientListRow[] {
-  const term = search?.trim();
-  const base = db
+const quoteCountSql = sql<number>`(SELECT COUNT(*) FROM ${quotes} WHERE ${quotes.clientId} = ${clients.id})`;
+const invoiceCountSql = sql<number>`(SELECT COUNT(*) FROM ${invoices} WHERE ${invoices.clientId} = ${clients.id})`;
+
+const CLIENT_SORT = {
+  name: clients.name,
+  company: clients.company,
+  email: clients.email,
+} as const;
+
+export function listClients(params: ListParams): Paged<ClientListRow> {
+  const term = params.q;
+  const where = term
+    ? or(
+        like(clients.name, `%${term}%`),
+        like(clients.company, `%${term}%`),
+        like(clients.email, `%${term}%`),
+      )
+    : undefined;
+
+  const col =
+    params.sort === "quotes"
+      ? quoteCountSql
+      : params.sort === "invoices"
+        ? invoiceCountSql
+        : (params.sort && CLIENT_SORT[params.sort as keyof typeof CLIENT_SORT]) ||
+          clients.createdAt;
+  const orderBy = params.dir === "asc" ? asc(col) : desc(col);
+
+  const total = db.select({ v: count() }).from(clients).where(where).get()?.v ?? 0;
+  const rows = db
     .select({
       client: clients,
-      quoteCount: sql<number>`(SELECT COUNT(*) FROM ${quotes} WHERE ${quotes.clientId} = ${clients.id})`,
-      invoiceCount: sql<number>`(SELECT COUNT(*) FROM ${invoices} WHERE ${invoices.clientId} = ${clients.id})`,
+      quoteCount: quoteCountSql,
+      invoiceCount: invoiceCountSql,
     })
-    .from(clients);
+    .from(clients)
+    .where(where)
+    .orderBy(orderBy)
+    .limit(params.pageSize)
+    .offset(params.offset)
+    .all()
+    .map((r) => ({
+      ...r.client,
+      quoteCount: r.quoteCount,
+      invoiceCount: r.invoiceCount,
+    }));
 
-  const rows = (
-    term
-      ? base.where(
-          or(
-            like(clients.name, `%${term}%`),
-            like(clients.company, `%${term}%`),
-            like(clients.email, `%${term}%`),
-          ),
-        )
-      : base
-  )
-    .orderBy(desc(clients.createdAt))
-    .all();
-
-  return rows.map((r) => ({
-    ...r.client,
-    quoteCount: r.quoteCount,
-    invoiceCount: r.invoiceCount,
-  }));
+  return paged(rows, total, params);
 }
 
 export function getClient(id: number): Client | undefined {

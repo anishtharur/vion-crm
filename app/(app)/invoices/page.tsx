@@ -3,18 +3,24 @@ import { Plus, ReceiptText } from "lucide-react";
 
 import { StatusBadge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Td, Th, TableCard } from "@/components/ui/table";
-import { listInvoices } from "@/lib/data/invoices";
-import { getSettings } from "@/lib/data/settings";
+import { deleteInvoiceRow } from "@/lib/actions/invoices";
+import { listInvoices, INVOICE_SORT } from "@/lib/data/invoices";
+import { parseListParams } from "@/lib/data/list-params";
+import { currencySymbol } from "@/lib/utils/currency";
 import { formatDate, formatMoney } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function InvoicesPage() {
-  const invoices = listInvoices();
-  const sym = getSettings().currencySymbol;
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = parseListParams(await searchParams, { sortable: Object.keys(INVOICE_SORT) });
+  const { rows, total, page, pageCount } = listInvoices(params);
 
   return (
     <div className="space-y-6">
@@ -29,8 +35,8 @@ export default async function InvoicesPage() {
         }
       />
 
-      {invoices.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+      {total === 0 ? (
+        <div className="rounded-lg border border-border bg-surface shadow-[var(--shadow-card)]">
           <EmptyState
             icon={ReceiptText}
             title="No invoices yet"
@@ -44,47 +50,50 @@ export default async function InvoicesPage() {
           />
         </div>
       ) : (
-        <TableCard>
-          <thead>
-            <tr>
-              <Th>Number</Th>
-              <Th>Client</Th>
-              <Th>Due</Th>
-              <Th>Status</Th>
-              <Th align="right">Total</Th>
-              <Th align="right">Balance</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map((inv) => (
-              <tr key={inv.id} className="transition-colors hover:bg-surface-muted/50">
-                <Td>
-                  <Link href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
-                    {inv.number}
-                  </Link>
-                </Td>
-                <Td>
-                  <Link href={`/clients/${inv.clientId}`} className="hover:text-primary">
-                    {inv.clientName}
-                  </Link>
-                  {inv.clientCompany ? (
-                    <span className="block text-xs text-muted-foreground">{inv.clientCompany}</span>
-                  ) : null}
-                </Td>
-                <Td className="text-muted-foreground">{formatDate(inv.dueDate)}</Td>
-                <Td>
-                  <StatusBadge status={inv.displayStatus} />
-                </Td>
-                <Td align="right" className="font-medium">
-                  {formatMoney(inv.total, sym)}
-                </Td>
-                <Td align="right" className={inv.balance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
-                  {formatMoney(inv.balance, sym)}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableCard>
+        <DataTable
+          recordNoun="Invoices"
+          sort={{ key: params.sort, dir: params.dir }}
+          page={page}
+          pageCount={pageCount}
+          total={total}
+          columns={[
+            { header: "Number", sortKey: "number" },
+            { header: "Client", sortKey: "client" },
+            { header: "Due", sortKey: "due" },
+            { header: "Status" },
+            { header: "Total", align: "right", sortKey: "total" },
+            { header: "Balance", align: "right", sortKey: "balance" },
+          ]}
+          rows={rows.map((inv) => ({
+            id: inv.id,
+            delete: {
+              action: deleteInvoiceRow.bind(null, inv.id),
+              confirm: `Delete ${inv.number}? This cannot be undone.`,
+            },
+            cells: [
+              <Link key="n" href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+                {inv.number}
+              </Link>,
+              <div key="c">
+                <Link href={`/clients/${inv.clientId}`} className="hover:text-primary">
+                  {inv.clientName}
+                </Link>
+                {inv.clientCompany ? (
+                  <span className="block text-xs text-muted-foreground">{inv.clientCompany}</span>
+                ) : null}
+              </div>,
+              <span key="d" className="text-muted-foreground">{formatDate(inv.dueDate)}</span>,
+              <StatusBadge key="s" status={inv.displayStatus} />,
+              <span key="t" className="font-medium">{formatMoney(inv.total, currencySymbol(inv.currency))}</span>,
+              <span
+                key="b"
+                className={inv.balance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}
+              >
+                {formatMoney(inv.balance, currencySymbol(inv.currency))}
+              </span>,
+            ],
+          }))}
+        />
       )}
     </div>
   );

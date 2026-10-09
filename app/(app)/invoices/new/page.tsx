@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { createInvoice } from "@/lib/actions/invoices";
 import { listClientOptions } from "@/lib/data/clients";
 import { getSettings } from "@/lib/data/settings";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 import { addDays, todayISO } from "@/lib/utils/format";
 import { INVOICE_EDITABLE_STATUSES } from "@/lib/utils/invoice-status";
 
@@ -25,7 +26,7 @@ export default async function NewInvoicePage({
         kind="invoice"
         action={createInvoice}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={INVOICE_EDITABLE_STATUSES}
         cancelHref="/invoices"
@@ -34,6 +35,7 @@ export default async function NewInvoicePage({
           clientId: clientId ? Number(clientId) : undefined,
           issueDate,
           secondaryDate: addDays(issueDate, settings.paymentTermsDays),
+          currency: settings.currencyCode,
           discount: 0,
           taxRate: settings.defaultTaxRate,
           notes: "",

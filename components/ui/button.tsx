@@ -36,7 +36,7 @@ export const buttonClass = (
   className?: string,
 ) =>
   cn(
-    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium transition-colors duration-150 cursor-pointer",
+    "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors duration-150 cursor-pointer",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     "disabled:pointer-events-none disabled:opacity-50",
     variants[variant],

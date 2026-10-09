@@ -6,6 +6,7 @@ import {
   PROFORMA_STATUSES,
   QUOTE_STATUSES,
 } from "@/lib/db/schema";
+import { CURRENCY_CODES } from "@/lib/utils/currency";
 
 /** Shared result shape returned by every Server Action to useActionState. */
 export type FormState = {
@@ -53,6 +54,7 @@ const lineItemSchema = z.object({
 const documentBase = {
   clientId: z.coerce.number().int().positive("Select a client"),
   issueDate: z.string().trim().min(1, "Issue date is required"),
+  currency: z.enum(CURRENCY_CODES).default("USD"),
   discount: z.coerce.number().min(0).max(100_000_000).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(0),
   notes: optionalText,
@@ -115,6 +117,7 @@ export const settingsSchema = z.object({
   gstin: z.string().trim().max(40).optional().default(""),
   currencySymbol: z.string().trim().min(1, "Required").max(8),
   currencyCode: z.string().trim().max(8).default("USD"),
+  exchangeRates: z.string().default("{}"),
   defaultTaxRate: z.coerce.number().min(0).max(100).default(0),
   taxLabel: z.string().trim().min(1, "Required").max(20),
   quotePrefix: z.string().trim().min(1, "Required").max(16),

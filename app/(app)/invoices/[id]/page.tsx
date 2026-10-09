@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/invoices";
 import { getInvoice } from "@/lib/data/invoices";
 import { getSettings } from "@/lib/data/settings";
+import { currencySymbol } from "@/lib/utils/currency";
 import { formatDate, formatMoney } from "@/lib/utils/format";
 import { INVOICE_EDITABLE_STATUSES } from "@/lib/utils/invoice-status";
 
@@ -35,7 +36,7 @@ export default async function InvoiceDetailPage({
 
   const { invoice, client, items, payments, balance } = found;
   const settings = getSettings();
-  const sym = settings.currencySymbol;
+  const sym = currencySymbol(invoice.currency);
 
   return (
     <div className="space-y-6">
@@ -54,7 +55,7 @@ export default async function InvoiceDetailPage({
               Edit
             </Link>
             <a
-              href={`/print/invoices/${invoice.id}`}
+              href={`/api/pdf/invoices/${invoice.id}?name=${encodeURIComponent(invoice.number)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass("outline", "md")}
@@ -91,6 +92,7 @@ export default async function InvoiceDetailPage({
               taxAmount: invoice.taxAmount,
               total: invoice.total,
               amountPaid: invoice.amountPaid,
+              currency: invoice.currency,
             }}
           />
         </div>
@@ -148,7 +150,7 @@ export default async function InvoiceDetailPage({
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <a
-                        href={`/print/receipts/${p.id}`}
+                        href={`/api/pdf/receipts/${p.id}?name=${encodeURIComponent(p.number || `receipt-${p.id}`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={buttonClass("ghost", "sm")}

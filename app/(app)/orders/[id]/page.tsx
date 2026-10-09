@@ -49,7 +49,7 @@ export default async function OrderDetailPage({
               Edit
             </Link>
             <a
-              href={`/print/orders/${order.id}`}
+              href={`/api/pdf/orders/${order.id}?name=${encodeURIComponent(order.number)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass("outline", "md")}
@@ -102,6 +102,7 @@ export default async function OrderDetailPage({
           taxRate: order.taxRate,
           taxAmount: order.taxAmount,
           total: order.total,
+          currency: order.currency,
         }}
       />
     </div>

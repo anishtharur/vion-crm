@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { computeTotals, lineTotal } from "@/lib/utils/money";
 import { formatMoney, titleCase } from "@/lib/utils/format";
+import type { CurrencyMeta } from "@/lib/utils/currency";
 import { initialFormState, type FormState } from "@/lib/validation/schemas";
 
 export type DocClientOption = { id: number; name: string; company: string };
@@ -32,6 +33,7 @@ export type DocumentDefaults = {
   clientId?: number;
   issueDate: string;
   secondaryDate: string;
+  currency: string;
   discount: number;
   taxRate: number;
   notes: string;
@@ -51,7 +53,7 @@ type Props = {
   kind: "quote" | "order" | "proforma" | "invoice";
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   clients: DocClientOption[];
-  currencySymbol: string;
+  currencies: CurrencyMeta[];
   taxLabel: string;
   statuses: readonly string[];
   defaults: DocumentDefaults;
@@ -72,7 +74,7 @@ export function DocumentForm({
   kind,
   action,
   clients,
-  currencySymbol,
+  currencies,
   taxLabel,
   statuses,
   defaults,
@@ -87,6 +89,9 @@ export function DocumentForm({
   );
   const [discount, setDiscount] = useState<number>(defaults.discount);
   const [taxRate, setTaxRate] = useState<number>(defaults.taxRate);
+  const [currency, setCurrency] = useState<string>(defaults.currency);
+  const currencySymbol =
+    currencies.find((c) => c.code === currency)?.symbol ?? currencies[0]?.symbol ?? "$";
 
   const totals = useMemo(
     () => computeTotals({ items, discount, taxRate }),
@@ -196,6 +201,23 @@ export function DocumentForm({
           ) : null}
 
           <div>
+            <Label htmlFor="currency">Currency</Label>
+            <Select
+              id="currency"
+              name="currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              {currencies.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+            <FieldError message={errors.currency} />
+          </div>
+
+          <div>
             <Label htmlFor="status">Status</Label>
             <Select id="status" name="status" defaultValue={defaults.status}>
               {statuses.map((s) => (
@@ -269,7 +291,8 @@ export function DocumentForm({
           {errors.items ? <FieldError message={errors.items} /> : null}
 
           {/* Column headers (desktop) */}
-          <div className="hidden grid-cols-[1fr_88px_120px_120px_40px] gap-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+          <div className="hidden grid-cols-[40px_1fr_88px_120px_120px_40px] gap-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+            <span>SL No</span>
             <span>Description</span>
             <span className="text-right">Qty</span>
             <span className="text-right">Unit price</span>
@@ -282,7 +305,10 @@ export function DocumentForm({
               key={i}
               className="space-y-2 rounded-lg border border-border p-3 sm:border-0 sm:p-1"
             >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_88px_120px_120px_40px] sm:items-center">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[40px_1fr_88px_120px_120px_40px] sm:items-center">
+                <div className="hidden text-sm tabular-nums text-muted-foreground sm:block sm:px-1">
+                  {i + 1}
+                </div>
                 <Input
                   aria-label={`Item ${i + 1} description`}
                   placeholder="Description of work or product"
@@ -326,7 +352,8 @@ export function DocumentForm({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_160px_96px_40px]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[40px_1fr_160px_96px_40px]">
+                  <span className="hidden sm:block" />
                   <Input
                     aria-label={`Item ${i + 1} specification`}
                     placeholder="Specification / sub-description (optional)"
@@ -349,6 +376,19 @@ export function DocumentForm({
                 </div>
             </div>
           ))}
+
+          {/* Bottom add-line button — handy when the list is long. */}
+          <button
+            type="button"
+            onClick={addRow}
+            className={cn(
+              buttonClass("outline", "sm"),
+              "w-full justify-center border-dashed text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            Add line
+          </button>
         </CardBody>
       </Card>
 

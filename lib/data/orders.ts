@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,11 +11,23 @@ import {
   type Order,
   type OrderItem,
 } from "@/lib/db/schema";
+import { paged, type ListParams, type Paged } from "./list-params";
 
 export type OrderListRow = Order & { clientName: string; clientCompany: string };
 
-export function listOrders(): OrderListRow[] {
-  return db
+export const ORDER_SORT = {
+  number: orders.number,
+  client: clients.name,
+  issued: orders.issueDate,
+  total: orders.total,
+} as const;
+
+export function listOrders(params: ListParams): Paged<OrderListRow> {
+  const col = (params.sort && ORDER_SORT[params.sort as keyof typeof ORDER_SORT]) || orders.createdAt;
+  const orderBy = params.dir === "asc" ? asc(col) : desc(col);
+
+  const total = db.select({ v: count() }).from(orders).get()?.v ?? 0;
+  const rows = db
     .select({
       order: orders,
       clientName: clients.name,
@@ -23,9 +35,13 @@ export function listOrders(): OrderListRow[] {
     })
     .from(orders)
     .innerJoin(clients, eq(orders.clientId, clients.id))
-    .orderBy(desc(orders.createdAt))
+    .orderBy(orderBy)
+    .limit(params.pageSize)
+    .offset(params.offset)
     .all()
     .map((r) => ({ ...r.order, clientName: r.clientName, clientCompany: r.clientCompany }));
+
+  return paged(rows, total, params);
 }
 
 export type OrderWithItems = {

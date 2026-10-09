@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+// Single enterprise UI typeface — neutral, dense, used for both body and headings.
+const plex = IBM_Plex_Sans({
+  variable: "--font-plex",
   subsets: ["latin"],
-  display: "swap",
-});
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Vion CRM",
-  description: "Vion Labs — clients, quotes, estimates and invoicing.",
+  title: {
+    default: "Vion CRM",
+    template: "%s · Vion CRM",
+  },
+  description:
+    "Vion Labs CRM — manage clients, quotations, order acknowledgements, pro-forma invoices, invoices and payment receipts in one place.",
+  applicationName: "Vion CRM",
 };
 
 /**
@@ -35,7 +35,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${poppins.variable} h-full antialiased`}
+      className={`${plex.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

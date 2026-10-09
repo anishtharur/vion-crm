@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="vionIcon" gradientUnits="userSpaceOnUse" x1="80" y1="0" x2="80" y2="105">
+      <stop offset="0" stop-color="#7df4d7" />
+      <stop offset="0.5" stop-color="#3edab2" />
+      <stop offset="1" stop-color="#0e9e78" />
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="34" fill="#04201e" />
+  <g transform="translate(0,28)">
+    <polygon points="8,5 44,5 64,45 28,45" fill="url(#vionIcon)" />
+    <polygon points="152,5 116,5 96,45 132,45" fill="url(#vionIcon)" />
+    <polygon points="33,55 69,55 80,77 68.5,100 55.5,100" fill="url(#vionIcon)" opacity="0.82" />
+    <polygon points="91,55 127,55 104.5,100 68.5,100" fill="url(#vionIcon)" />
+  </g>
+</svg>

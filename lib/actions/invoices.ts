@@ -31,6 +31,7 @@ function parse(formData: FormData) {
   return invoiceSchema.safeParse({
     clientId: formData.get("clientId"),
     issueDate: formData.get("issueDate"),
+    currency: formData.get("currency") ?? "USD",
     dueDate: formData.get("dueDate") ?? "",
     status: formData.get("status") ?? "draft",
     discount: formData.get("discount") ?? 0,
@@ -79,6 +80,7 @@ export async function createInvoice(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         dueDate: data.dueDate || "",
         notes: data.notes,
         terms: data.terms,
@@ -115,6 +117,7 @@ export async function updateInvoice(
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
+        currency: data.currency,
         dueDate: data.dueDate || "",
         notes: data.notes,
         terms: data.terms,
@@ -159,6 +162,26 @@ export async function deleteInvoice(
   db.delete(invoices).where(eq(invoices.id, id)).run();
   revalidatePath("/invoices");
   redirect("/invoices");
+}
+
+/** Delete an invoice from the list (stays on the list; no redirect). */
+export async function deleteInvoiceRow(id: number): Promise<FormState> {
+  db.delete(invoices).where(eq(invoices.id, id)).run();
+  revalidatePath("/invoices");
+  return { ok: true };
+}
+
+/** Delete a payment receipt from the receipts list and resync its invoice. */
+export async function deleteReceiptRow(paymentId: number): Promise<FormState> {
+  db.transaction((tx) => {
+    const pay = tx.select().from(payments).where(eq(payments.id, paymentId)).get();
+    if (!pay) return;
+    tx.delete(payments).where(eq(payments.id, paymentId)).run();
+    syncInvoiceTotals(tx, pay.invoiceId);
+  });
+  revalidatePath("/receipts");
+  revalidatePath("/invoices");
+  return { ok: true };
 }
 
 /** Record a payment, then recompute amountPaid + status from all payments. */

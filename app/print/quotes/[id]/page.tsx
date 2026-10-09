@@ -44,6 +44,7 @@ export default async function PrintQuotePage({
           taxRate: quote.taxRate,
           taxAmount: quote.taxAmount,
           total: quote.total,
+          currency: quote.currency,
         }}
       />
     </>

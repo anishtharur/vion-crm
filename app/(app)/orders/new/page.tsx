@@ -4,6 +4,7 @@ import { createOrder } from "@/lib/actions/orders";
 import { listClientOptions } from "@/lib/data/clients";
 import { getSettings } from "@/lib/data/settings";
 import { ORDER_STATUSES } from "@/lib/db/schema";
+import { CURRENCY_OPTIONS } from "@/lib/utils/currency";
 import { todayISO } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function NewOrderPage({
         kind="order"
         action={createOrder}
         clients={clients}
-        currencySymbol={settings.currencySymbol}
+        currencies={CURRENCY_OPTIONS}
         taxLabel={settings.taxLabel}
         statuses={ORDER_STATUSES}
         cancelHref="/orders"
@@ -33,6 +34,7 @@ export default async function NewOrderPage({
           clientId: clientId ? Number(clientId) : undefined,
           issueDate: todayISO(),
           secondaryDate: "",
+          currency: settings.currencyCode,
           discount: 0,
           taxRate: settings.defaultTaxRate,
           notes: "",
