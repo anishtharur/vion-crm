@@ -56,6 +56,12 @@ export default async function EditQuotePage({
           projectName: quote.projectName,
           enquiryRef: quote.enquiryRef,
           attention: quote.attention,
+          termsScope: quote.termsScope ?? settings.termsScope,
+          termsPrices: quote.termsPrices ?? settings.termsPrices,
+          termsDelivery: quote.termsDelivery ?? settings.termsDelivery,
+          termsWarranty: quote.termsWarranty ?? settings.termsWarranty,
+          termsCompliance: quote.termsCompliance ?? settings.termsCompliance,
+          termsPacking: quote.termsPacking ?? settings.termsPacking,
           items: items.map((i) => ({
             description: i.description,
             detail: i.detail,

@@ -57,6 +57,12 @@ const documentBase = {
   currency: z.enum(CURRENCY_CODES).default("USD"),
   discount: z.coerce.number().min(0).max(100_000_000).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(5),
+  termsScope: optionalText,
+  termsPrices: optionalText,
+  termsDelivery: optionalText,
+  termsWarranty: optionalText,
+  termsCompliance: optionalText,
+  termsPacking: optionalText,
   notes: optionalText,
   terms: optionalText,
   items: z
@@ -131,12 +137,6 @@ export const settingsSchema = z.object({
   bankDetails: optionalText,
   footerNote: optionalText,
   signatoryName: optionalText,
-  termsScope: optionalText,
-  termsPrices: optionalText,
-  termsDelivery: optionalText,
-  termsWarranty: optionalText,
-  termsCompliance: optionalText,
-  termsPacking: optionalText,
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>;

@@ -32,6 +32,12 @@ export type PaperData = {
   enquiryRef?: string;
   attention?: string;
   deliveryTime?: string;
+  termsScope?: string;
+  termsPrices?: string;
+  termsDelivery?: string;
+  termsWarranty?: string;
+  termsCompliance?: string;
+  termsPacking?: string;
   /** "Converted from" reference, e.g. "QID-VL-2026-099". */
   sourceRef?: string;
   notes?: string;
@@ -358,34 +364,45 @@ export function DocumentPaper({
 
 /** Commercial-terms grid contents, varying by document type. */
 function buildTerms(data: PaperData, settings: Settings): [string, string][] {
+  const commercialTerms: [string, string][] = [
+    ["Scope", data.termsScope ?? settings.termsScope],
+    ["Prices", data.termsPrices ?? settings.termsPrices],
+    ["Delivery", data.termsDelivery ?? settings.termsDelivery],
+    ["Warranty", data.termsWarranty ?? settings.termsWarranty],
+    ["Compliance", data.termsCompliance ?? settings.termsCompliance],
+    ["Packing", data.termsPacking ?? settings.termsPacking],
+  ];
+  const payment = data.terms || settings.paymentTerms;
+
   if (data.docType === "invoice") {
-    return data.terms?.trim() ? [["Payment", data.terms]] : [];
+    return [
+      ...commercialTerms,
+      ["Payment", payment] as [string, string],
+    ].filter(([, value]) => value.trim() !== "");
   }
 
   const validity = data.secondaryDate
     ? `${data.secondaryLabel ?? "Valid until"} ${formatDate(data.secondaryDate)}`
     : `${settings.quoteValidityDays} days from date of this document.`;
-  const payment = data.terms || settings.paymentTerms;
 
   const rows: [string, string][] =
     data.docType === "order"
       ? [
-          ["Delivery", data.deliveryTime || settings.termsDelivery],
+          ...commercialTerms.slice(0, 2),
+          commercialTerms[2],
+          ...(data.deliveryTime
+            ? [["Delivery time", data.deliveryTime] as [string, string]]
+            : []),
+          ...commercialTerms.slice(3, 5),
           ["Payment", payment],
-          ["Scope", settings.termsScope],
-          ["Warranty", settings.termsWarranty],
-          ["Compliance", settings.termsCompliance],
-          ["Packing", settings.termsPacking],
+          commercialTerms[5],
         ]
       : [
-          ["Scope", settings.termsScope],
-          ["Prices", settings.termsPrices],
+          ...commercialTerms.slice(0, 2),
           ["Validity", validity],
-          ["Delivery", settings.termsDelivery],
-          ["Warranty", settings.termsWarranty],
-          ["Compliance", settings.termsCompliance],
+          ...commercialTerms.slice(2, 5),
           ["Payment", payment],
-          ["Packing", settings.termsPacking],
+          commercialTerms[5],
         ];
 
   return rows.filter(([, value]) => value.trim() !== "");

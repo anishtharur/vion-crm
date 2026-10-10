@@ -65,7 +65,7 @@ export default async function ProformaDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="accent"
-              confirm="Create an invoice from this pro-forma?"
+              confirm="Create an invoice, or refresh its linked draft from this pro-forma? Refreshing replaces the draft's items, amounts, and terms. Issued or paid invoices are unchanged."
             />
             <DeleteButton
               action={deleteProforma.bind(null, proforma.id)}
@@ -90,6 +90,12 @@ export default async function ProformaDetailPage({
           projectName: proforma.projectName,
           enquiryRef: proforma.enquiryRef,
           attention: proforma.attention,
+          termsScope: proforma.termsScope ?? undefined,
+          termsPrices: proforma.termsPrices ?? undefined,
+          termsDelivery: proforma.termsDelivery ?? undefined,
+          termsWarranty: proforma.termsWarranty ?? undefined,
+          termsCompliance: proforma.termsCompliance ?? undefined,
+          termsPacking: proforma.termsPacking ?? undefined,
           notes: proforma.notes,
           terms: proforma.terms,
           subtotal: proforma.subtotal,

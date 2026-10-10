@@ -51,6 +51,12 @@ export default async function EditInvoicePage({
           taxRate: invoice.taxRate,
           notes: invoice.notes,
           terms: invoice.terms,
+          termsScope: invoice.termsScope ?? settings.termsScope,
+          termsPrices: invoice.termsPrices ?? settings.termsPrices,
+          termsDelivery: invoice.termsDelivery ?? settings.termsDelivery,
+          termsWarranty: invoice.termsWarranty ?? settings.termsWarranty,
+          termsCompliance: invoice.termsCompliance ?? settings.termsCompliance,
+          termsPacking: invoice.termsPacking ?? settings.termsPacking,
           status: invoice.status,
           items: items.map((i) => ({
             description: i.description,

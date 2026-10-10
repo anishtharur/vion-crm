@@ -1,7 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useTransition } from "react";
 
 import { buttonClass } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -26,6 +26,7 @@ export function DeleteButton({
   size?: "sm" | "md";
 }) {
   const [state, formAction, pending] = useActionState(action, initialFormState);
+  const [transitionPending, startTransition] = useTransition();
   const { confirm: ask } = useConfirm();
 
   async function onClick() {
@@ -35,7 +36,11 @@ export function DeleteButton({
       confirmLabel: "Delete",
       tone: "destructive",
     });
-    if (ok) formAction(new FormData());
+    if (ok) {
+      startTransition(async () => {
+        await formAction(new FormData());
+      });
+    }
   }
 
   return (
@@ -43,11 +48,14 @@ export function DeleteButton({
       <button
         type="button"
         onClick={onClick}
-        disabled={pending}
-        className={cn(buttonClass("outline", size), "text-destructive hover:bg-destructive/10")}
+        disabled={pending || transitionPending}
+        className={cn(
+          buttonClass("outline", size),
+          "text-destructive hover:bg-destructive/10",
+        )}
       >
         <Trash2 className="h-4 w-4" />
-        {pending ? "Deleting…" : label}
+        {pending || transitionPending ? "Deleting…" : label}
       </button>
       {state.message ? (
         <p role="alert" className="mt-2 max-w-xs text-xs text-destructive">

@@ -66,7 +66,7 @@ export default async function OrderDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="outline"
-              confirm="Create a pro-forma invoice from this order?"
+              confirm="Create a pro-forma, or refresh its linked draft from this order? Refreshing replaces the draft's items, amounts, and terms. Issued pro-formas are unchanged."
             />
             <ActionButton
               action={convertOrderToInvoice.bind(null, order.id)}
@@ -74,7 +74,7 @@ export default async function OrderDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="accent"
-              confirm="Create an invoice from this order?"
+              confirm="Create an invoice, or refresh its linked draft from this order? Refreshing replaces the draft's items, amounts, and terms. Issued or paid invoices are unchanged."
             />
             <DeleteButton
               action={deleteOrder.bind(null, order.id)}
@@ -98,6 +98,12 @@ export default async function OrderDetailPage({
           enquiryRef: order.enquiryRef,
           attention: order.attention,
           deliveryTime: order.deliveryTime,
+          termsScope: order.termsScope ?? undefined,
+          termsPrices: order.termsPrices ?? undefined,
+          termsDelivery: order.termsDelivery ?? undefined,
+          termsWarranty: order.termsWarranty ?? undefined,
+          termsCompliance: order.termsCompliance ?? undefined,
+          termsPacking: order.termsPacking ?? undefined,
           notes: order.notes,
           terms: order.terms,
           subtotal: order.subtotal,

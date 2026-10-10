@@ -67,7 +67,7 @@ export default async function QuoteDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="outline"
-              confirm="Create an order acknowledgement from this quote?"
+              confirm="Create an order, or refresh its linked draft from this quote? Refreshing replaces the draft's items, amounts, and terms. Confirmed orders are unchanged."
             />
             <ActionButton
               action={convertQuoteToProforma.bind(null, quote.id)}
@@ -75,7 +75,7 @@ export default async function QuoteDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="outline"
-              confirm="Create a pro-forma invoice from this quote?"
+              confirm="Create a pro-forma, or refresh its linked draft from this quote? Refreshing replaces the draft's items, amounts, and terms. Issued pro-formas are unchanged."
             />
             <ActionButton
               action={convertQuoteToInvoice.bind(null, quote.id)}
@@ -83,7 +83,7 @@ export default async function QuoteDetailPage({
               pendingLabel="Converting…"
               icon={<ArrowRightLeft className="h-4 w-4" />}
               variant="accent"
-              confirm="Create an invoice from this quote?"
+              confirm="Create an invoice, or refresh its linked draft from this quote? Refreshing replaces the draft's items, amounts, and terms. Issued or paid invoices are unchanged."
             />
             <DeleteButton
               action={deleteQuote.bind(null, quote.id)}
@@ -108,6 +108,12 @@ export default async function QuoteDetailPage({
           projectName: quote.projectName,
           enquiryRef: quote.enquiryRef,
           attention: quote.attention,
+          termsScope: quote.termsScope ?? undefined,
+          termsPrices: quote.termsPrices ?? undefined,
+          termsDelivery: quote.termsDelivery ?? undefined,
+          termsWarranty: quote.termsWarranty ?? undefined,
+          termsCompliance: quote.termsCompliance ?? undefined,
+          termsPacking: quote.termsPacking ?? undefined,
           notes: quote.notes,
           terms: quote.terms,
           subtotal: quote.subtotal,

@@ -56,6 +56,12 @@ export default async function EditProformaPage({
           projectName: proforma.projectName,
           enquiryRef: proforma.enquiryRef,
           attention: proforma.attention,
+          termsScope: proforma.termsScope ?? settings.termsScope,
+          termsPrices: proforma.termsPrices ?? settings.termsPrices,
+          termsDelivery: proforma.termsDelivery ?? settings.termsDelivery,
+          termsWarranty: proforma.termsWarranty ?? settings.termsWarranty,
+          termsCompliance: proforma.termsCompliance ?? settings.termsCompliance,
+          termsPacking: proforma.termsPacking ?? settings.termsPacking,
           items: items.map((i) => ({
             description: i.description,
             detail: i.detail,

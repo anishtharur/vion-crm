@@ -45,6 +45,12 @@ export default async function NewInvoicePage({
           taxRate: settings.defaultTaxRate,
           notes: "",
           terms: settings.paymentTerms,
+          termsScope: settings.termsScope,
+          termsPrices: settings.termsPrices,
+          termsDelivery: settings.termsDelivery,
+          termsWarranty: settings.termsWarranty,
+          termsCompliance: settings.termsCompliance,
+          termsPacking: settings.termsPacking,
           status: "draft",
           items: [],
         }}

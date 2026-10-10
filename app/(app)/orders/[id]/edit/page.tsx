@@ -56,6 +56,12 @@ export default async function EditOrderPage({
           projectName: order.projectName,
           enquiryRef: order.enquiryRef,
           attention: order.attention,
+          termsScope: order.termsScope ?? settings.termsScope,
+          termsPrices: order.termsPrices ?? settings.termsPrices,
+          termsDelivery: order.termsDelivery ?? settings.termsDelivery,
+          termsWarranty: order.termsWarranty ?? settings.termsWarranty,
+          termsCompliance: order.termsCompliance ?? settings.termsCompliance,
+          termsPacking: order.termsPacking ?? settings.termsPacking,
           deliveryTime: order.deliveryTime,
           items: items.map((i) => ({
             description: i.description,

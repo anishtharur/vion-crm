@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -49,6 +49,12 @@ function parse(formData: FormData) {
     projectName: formData.get("projectName") ?? "",
     enquiryRef: formData.get("enquiryRef") ?? "",
     attention: formData.get("attention") ?? "",
+    termsScope: formData.get("termsScope") ?? "",
+    termsPrices: formData.get("termsPrices") ?? "",
+    termsDelivery: formData.get("termsDelivery") ?? "",
+    termsWarranty: formData.get("termsWarranty") ?? "",
+    termsCompliance: formData.get("termsCompliance") ?? "",
+    termsPacking: formData.get("termsPacking") ?? "",
     discount: formData.get("discount") ?? 0,
     taxRate: formData.get("taxRate") ?? 5,
     notes: formData.get("notes") ?? "",
@@ -83,6 +89,12 @@ export async function createQuote(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -127,6 +139,12 @@ export async function updateQuote(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -185,7 +203,6 @@ export async function deleteQuoteRow(id: number): Promise<FormState> {
 export async function convertQuoteToInvoice(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
     const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
     const items = await tx
@@ -194,6 +211,56 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
       .where(eq(quoteItems.quoteId, id))
       .orderBy(quoteItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.quoteId, id),
+          isNull(invoices.orderId),
+          isNull(invoices.proformaId),
+        ),
+      )
+      .orderBy(desc(invoices.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft" && (existing.amountPaid ?? 0) === 0) {
+        await tx
+          .update(invoices)
+          .set({
+            clientId: quote.clientId,
+            currency: quote.currency,
+            termsScope: quote.termsScope,
+            termsPrices: quote.termsPrices,
+            termsDelivery: quote.termsDelivery,
+            termsWarranty: quote.termsWarranty,
+            termsCompliance: quote.termsCompliance,
+            termsPacking: quote.termsPacking,
+            notes: quote.notes,
+            terms: quote.terms || settings.paymentTerms,
+            subtotal: quote.subtotal,
+            discount: quote.discount,
+            taxRate: quote.taxRate,
+            taxAmount: quote.taxAmount,
+            total: quote.total,
+          })
+          .where(eq(invoices.id, existing.id))
+          .run();
+        await tx
+          .delete(invoiceItems)
+          .where(eq(invoiceItems.invoiceId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(invoiceItems)
+            .values({ invoiceId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const invoice = tx
@@ -206,6 +273,12 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
         issueDate,
         currency: quote.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
+        termsScope: quote.termsScope,
+        termsPrices: quote.termsPrices,
+        termsDelivery: quote.termsDelivery,
+        termsWarranty: quote.termsWarranty,
+        termsCompliance: quote.termsCompliance,
+        termsPacking: quote.termsPacking,
         notes: quote.notes,
         terms: quote.terms || settings.paymentTerms,
         subtotal: quote.subtotal,
@@ -256,7 +329,6 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
 export async function convertQuoteToOrder(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextOrderNumber(settings.orderPrefix, tx);
     const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
     const items = await tx
@@ -265,6 +337,54 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
       .where(eq(quoteItems.quoteId, id))
       .orderBy(quoteItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.quoteId, id))
+      .orderBy(desc(orders.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft") {
+        await tx
+          .update(orders)
+          .set({
+            clientId: quote.clientId,
+            currency: quote.currency,
+            subject: quote.subject,
+            projectName: quote.projectName,
+            enquiryRef: quote.enquiryRef,
+            attention: quote.attention,
+            termsScope: quote.termsScope,
+            termsPrices: quote.termsPrices,
+            termsDelivery: quote.termsDelivery,
+            termsWarranty: quote.termsWarranty,
+            termsCompliance: quote.termsCompliance,
+            termsPacking: quote.termsPacking,
+            notes: quote.notes,
+            terms: quote.terms || settings.paymentTerms,
+            subtotal: quote.subtotal,
+            discount: quote.discount,
+            taxRate: quote.taxRate,
+            taxAmount: quote.taxAmount,
+            total: quote.total,
+          })
+          .where(eq(orders.id, existing.id))
+          .run();
+        await tx
+          .delete(orderItems)
+          .where(eq(orderItems.orderId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(orderItems)
+            .values({ orderId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextOrderNumber(settings.orderPrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const order = tx
@@ -281,6 +401,12 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
         projectName: quote.projectName,
         enquiryRef: quote.enquiryRef,
         attention: quote.attention,
+        termsScope: quote.termsScope,
+        termsPrices: quote.termsPrices,
+        termsDelivery: quote.termsDelivery,
+        termsWarranty: quote.termsWarranty,
+        termsCompliance: quote.termsCompliance,
+        termsPacking: quote.termsPacking,
         notes: quote.notes,
         terms: quote.terms || settings.paymentTerms,
         subtotal: quote.subtotal,
@@ -317,7 +443,6 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
 export async function convertQuoteToProforma(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextProformaNumber(settings.proformaPrefix, tx);
     const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
     const items = await tx
@@ -326,6 +451,54 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
       .where(eq(quoteItems.quoteId, id))
       .orderBy(quoteItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(proformas)
+      .where(and(eq(proformas.quoteId, id), isNull(proformas.orderId)))
+      .orderBy(desc(proformas.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft") {
+        await tx
+          .update(proformas)
+          .set({
+            clientId: quote.clientId,
+            currency: quote.currency,
+            subject: quote.subject,
+            projectName: quote.projectName,
+            enquiryRef: quote.enquiryRef,
+            attention: quote.attention,
+            termsScope: quote.termsScope,
+            termsPrices: quote.termsPrices,
+            termsDelivery: quote.termsDelivery,
+            termsWarranty: quote.termsWarranty,
+            termsCompliance: quote.termsCompliance,
+            termsPacking: quote.termsPacking,
+            notes: quote.notes,
+            terms: quote.terms || settings.paymentTerms,
+            subtotal: quote.subtotal,
+            discount: quote.discount,
+            taxRate: quote.taxRate,
+            taxAmount: quote.taxAmount,
+            total: quote.total,
+          })
+          .where(eq(proformas.id, existing.id))
+          .run();
+        await tx
+          .delete(proformaItems)
+          .where(eq(proformaItems.proformaId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(proformaItems)
+            .values({ proformaId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextProformaNumber(settings.proformaPrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const proforma = tx
@@ -342,6 +515,12 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
         projectName: quote.projectName,
         enquiryRef: quote.enquiryRef,
         attention: quote.attention,
+        termsScope: quote.termsScope,
+        termsPrices: quote.termsPrices,
+        termsDelivery: quote.termsDelivery,
+        termsWarranty: quote.termsWarranty,
+        termsCompliance: quote.termsCompliance,
+        termsPacking: quote.termsPacking,
         notes: quote.notes,
         terms: quote.terms || settings.paymentTerms,
         subtotal: quote.subtotal,

@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -50,6 +50,12 @@ function parse(formData: FormData) {
     attention: formData.get("attention") ?? "",
     discount: formData.get("discount") ?? 0,
     taxRate: formData.get("taxRate") ?? 5,
+    termsScope: formData.get("termsScope") ?? "",
+    termsPrices: formData.get("termsPrices") ?? "",
+    termsDelivery: formData.get("termsDelivery") ?? "",
+    termsWarranty: formData.get("termsWarranty") ?? "",
+    termsCompliance: formData.get("termsCompliance") ?? "",
+    termsPacking: formData.get("termsPacking") ?? "",
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
@@ -101,6 +107,12 @@ export async function createOrder(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -144,6 +156,12 @@ export async function updateOrder(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -201,7 +219,6 @@ export async function deleteOrderRow(id: number): Promise<FormState> {
 export async function convertOrderToProforma(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextProformaNumber(settings.proformaPrefix, tx);
     const order = await tx.select().from(orders).where(eq(orders.id, id)).get();
     if (!order) throw new Error("Order not found");
     const items = await tx
@@ -210,6 +227,55 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
       .where(eq(orderItems.orderId, id))
       .orderBy(orderItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(proformas)
+      .where(eq(proformas.orderId, id))
+      .orderBy(desc(proformas.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft") {
+        await tx
+          .update(proformas)
+          .set({
+            clientId: order.clientId,
+            quoteId: order.quoteId ?? null,
+            currency: order.currency,
+            subject: order.subject,
+            projectName: order.projectName,
+            enquiryRef: order.enquiryRef,
+            attention: order.attention,
+            termsScope: order.termsScope,
+            termsPrices: order.termsPrices,
+            termsDelivery: order.termsDelivery,
+            termsWarranty: order.termsWarranty,
+            termsCompliance: order.termsCompliance,
+            termsPacking: order.termsPacking,
+            notes: order.notes,
+            terms: order.terms || settings.paymentTerms,
+            subtotal: order.subtotal,
+            discount: order.discount,
+            taxRate: order.taxRate,
+            taxAmount: order.taxAmount,
+            total: order.total,
+          })
+          .where(eq(proformas.id, existing.id))
+          .run();
+        await tx
+          .delete(proformaItems)
+          .where(eq(proformaItems.proformaId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(proformaItems)
+            .values({ proformaId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextProformaNumber(settings.proformaPrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const proforma = tx
@@ -227,6 +293,12 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
         projectName: order.projectName,
         enquiryRef: order.enquiryRef,
         attention: order.attention,
+        termsScope: order.termsScope,
+        termsPrices: order.termsPrices,
+        termsDelivery: order.termsDelivery,
+        termsWarranty: order.termsWarranty,
+        termsCompliance: order.termsCompliance,
+        termsPacking: order.termsPacking,
         notes: order.notes,
         terms: order.terms || settings.paymentTerms,
         subtotal: order.subtotal,
@@ -256,7 +328,6 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
 export async function convertOrderToInvoice(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
     const order = await tx.select().from(orders).where(eq(orders.id, id)).get();
     if (!order) throw new Error("Order not found");
     const items = await tx
@@ -265,6 +336,51 @@ export async function convertOrderToInvoice(id: number): Promise<FormState> {
       .where(eq(orderItems.orderId, id))
       .orderBy(orderItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.orderId, id), isNull(invoices.proformaId)))
+      .orderBy(desc(invoices.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft" && (existing.amountPaid ?? 0) === 0) {
+        await tx
+          .update(invoices)
+          .set({
+            clientId: order.clientId,
+            quoteId: order.quoteId ?? null,
+            currency: order.currency,
+            termsScope: order.termsScope,
+            termsPrices: order.termsPrices,
+            termsDelivery: order.termsDelivery,
+            termsWarranty: order.termsWarranty,
+            termsCompliance: order.termsCompliance,
+            termsPacking: order.termsPacking,
+            notes: order.notes,
+            terms: order.terms || settings.paymentTerms,
+            subtotal: order.subtotal,
+            discount: order.discount,
+            taxRate: order.taxRate,
+            taxAmount: order.taxAmount,
+            total: order.total,
+          })
+          .where(eq(invoices.id, existing.id))
+          .run();
+        await tx
+          .delete(invoiceItems)
+          .where(eq(invoiceItems.invoiceId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(invoiceItems)
+            .values({ invoiceId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const invoice = tx
@@ -278,6 +394,12 @@ export async function convertOrderToInvoice(id: number): Promise<FormState> {
         issueDate,
         currency: order.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
+        termsScope: order.termsScope,
+        termsPrices: order.termsPrices,
+        termsDelivery: order.termsDelivery,
+        termsWarranty: order.termsWarranty,
+        termsCompliance: order.termsCompliance,
+        termsPacking: order.termsPacking,
         notes: order.notes,
         terms: order.terms || settings.paymentTerms,
         subtotal: order.subtotal,

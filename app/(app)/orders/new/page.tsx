@@ -49,6 +49,12 @@ export default async function NewOrderPage({
           projectName: "",
           enquiryRef: "",
           attention: "",
+          termsScope: settings.termsScope,
+          termsPrices: settings.termsPrices,
+          termsDelivery: settings.termsDelivery,
+          termsWarranty: settings.termsWarranty,
+          termsCompliance: settings.termsCompliance,
+          termsPacking: settings.termsPacking,
           deliveryTime: "",
           items: [],
         }}

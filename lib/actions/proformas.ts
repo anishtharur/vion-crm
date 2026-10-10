@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -44,6 +44,12 @@ function parse(formData: FormData) {
     attention: formData.get("attention") ?? "",
     discount: formData.get("discount") ?? 0,
     taxRate: formData.get("taxRate") ?? 5,
+    termsScope: formData.get("termsScope") ?? "",
+    termsPrices: formData.get("termsPrices") ?? "",
+    termsDelivery: formData.get("termsDelivery") ?? "",
+    termsWarranty: formData.get("termsWarranty") ?? "",
+    termsCompliance: formData.get("termsCompliance") ?? "",
+    termsPacking: formData.get("termsPacking") ?? "",
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
@@ -99,6 +105,12 @@ export async function createProforma(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -142,6 +154,12 @@ export async function updateProforma(
         projectName: data.projectName,
         enquiryRef: data.enquiryRef,
         attention: data.attention,
+        termsScope: data.termsScope,
+        termsPrices: data.termsPrices,
+        termsDelivery: data.termsDelivery,
+        termsWarranty: data.termsWarranty,
+        termsCompliance: data.termsCompliance,
+        termsPacking: data.termsPacking,
         notes: data.notes,
         terms: data.terms,
         subtotal: totals.subtotal,
@@ -202,7 +220,6 @@ export async function deleteProformaRow(id: number): Promise<FormState> {
 export async function convertProformaToInvoice(id: number): Promise<FormState> {
   const settings = await getSettings();
   const newId = await db.transaction(async (tx) => {
-    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
     const proforma = await tx
       .select()
       .from(proformas)
@@ -215,6 +232,52 @@ export async function convertProformaToInvoice(id: number): Promise<FormState> {
       .where(eq(proformaItems.proformaId, id))
       .orderBy(proformaItems.sortOrder)
       .all();
+    const existing = await tx
+      .select()
+      .from(invoices)
+      .where(eq(invoices.proformaId, id))
+      .orderBy(desc(invoices.createdAt))
+      .limit(1)
+      .get();
+    if (existing) {
+      if (existing.status === "draft" && (existing.amountPaid ?? 0) === 0) {
+        await tx
+          .update(invoices)
+          .set({
+            clientId: proforma.clientId,
+            quoteId: proforma.quoteId ?? null,
+            orderId: proforma.orderId ?? null,
+            currency: proforma.currency,
+            termsScope: proforma.termsScope,
+            termsPrices: proforma.termsPrices,
+            termsDelivery: proforma.termsDelivery,
+            termsWarranty: proforma.termsWarranty,
+            termsCompliance: proforma.termsCompliance,
+            termsPacking: proforma.termsPacking,
+            notes: proforma.notes,
+            terms: proforma.terms || settings.paymentTerms,
+            subtotal: proforma.subtotal,
+            discount: proforma.discount,
+            taxRate: proforma.taxRate,
+            taxAmount: proforma.taxAmount,
+            total: proforma.total,
+          })
+          .where(eq(invoices.id, existing.id))
+          .run();
+        await tx
+          .delete(invoiceItems)
+          .where(eq(invoiceItems.invoiceId, existing.id))
+          .run();
+        for (const it of items) {
+          await tx
+            .insert(invoiceItems)
+            .values({ invoiceId: existing.id, ...itemCopy(it) })
+            .run();
+        }
+      }
+      return existing.id;
+    }
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
 
     const issueDate = new Date().toISOString().slice(0, 10);
     const invoice = tx
@@ -229,6 +292,12 @@ export async function convertProformaToInvoice(id: number): Promise<FormState> {
         issueDate,
         currency: proforma.currency,
         dueDate: addDays(issueDate, settings.paymentTermsDays),
+        termsScope: proforma.termsScope,
+        termsPrices: proforma.termsPrices,
+        termsDelivery: proforma.termsDelivery,
+        termsWarranty: proforma.termsWarranty,
+        termsCompliance: proforma.termsCompliance,
+        termsPacking: proforma.termsPacking,
         notes: proforma.notes,
         terms: proforma.terms || settings.paymentTerms,
         subtotal: proforma.subtotal,

@@ -50,6 +50,12 @@ export default async function NewProformaPage({
           projectName: "",
           enquiryRef: "",
           attention: "",
+          termsScope: settings.termsScope,
+          termsPrices: settings.termsPrices,
+          termsDelivery: settings.termsDelivery,
+          termsWarranty: settings.termsWarranty,
+          termsCompliance: settings.termsCompliance,
+          termsPacking: settings.termsPacking,
           items: [],
         }}
       />

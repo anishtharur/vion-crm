@@ -49,12 +49,6 @@ export async function updateSettings(
     bankDetails: formData.get("bankDetails") ?? "",
     footerNote: formData.get("footerNote") ?? "",
     signatoryName: formData.get("signatoryName") ?? "",
-    termsScope: formData.get("termsScope") ?? "",
-    termsPrices: formData.get("termsPrices") ?? "",
-    termsDelivery: formData.get("termsDelivery") ?? "",
-    termsWarranty: formData.get("termsWarranty") ?? "",
-    termsCompliance: formData.get("termsCompliance") ?? "",
-    termsPacking: formData.get("termsPacking") ?? "",
   });
   if (!parsed.success)
     return { ok: false, errors: flattenErrors(parsed.error) };

@@ -45,6 +45,12 @@ export type DocumentDefaults = {
   projectName?: string;
   enquiryRef?: string;
   attention?: string;
+  termsScope?: string;
+  termsPrices?: string;
+  termsDelivery?: string;
+  termsWarranty?: string;
+  termsCompliance?: string;
+  termsPacking?: string;
   /** Order-only promised lead time. */
   deliveryTime?: string;
 };
@@ -91,7 +97,9 @@ export function DocumentForm({
   const [taxRate, setTaxRate] = useState<number>(defaults.taxRate);
   const [currency, setCurrency] = useState<string>(defaults.currency);
   const currencySymbol =
-    currencies.find((c) => c.code === currency)?.symbol ?? currencies[0]?.symbol ?? "$";
+    currencies.find((c) => c.code === currency)?.symbol ??
+    currencies[0]?.symbol ??
+    "$";
 
   const totals = useMemo(
     () => computeTotals({ items, discount, taxRate }),
@@ -107,13 +115,17 @@ export function DocumentForm({
     kind === "quote" || kind === "proforma" ? "validUntil" : "dueDate";
 
   function updateRow(index: number, patch: Partial<DocItem>) {
-    setItems((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    setItems((rows) =>
+      rows.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+    );
   }
   function addRow() {
     setItems((rows) => [...rows, { ...blankRow }]);
   }
   function removeRow(index: number) {
-    setItems((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== index)));
+    setItems((rows) =>
+      rows.length === 1 ? rows : rows.filter((_, i) => i !== index),
+    );
   }
 
   return (
@@ -122,7 +134,10 @@ export function DocumentForm({
       <input type="hidden" name="itemsJson" value={JSON.stringify(items)} />
 
       {state.message ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-destructive ring-1 ring-red-200">
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 px-4 py-3 text-sm text-destructive ring-1 ring-red-200"
+        >
           {state.message}
         </p>
       ) : null}
@@ -235,7 +250,9 @@ export function DocumentForm({
           <CardHeader
             title="Project & references"
             action={
-              <span className="text-xs text-muted-foreground">Shown on the document</span>
+              <span className="text-xs text-muted-foreground">
+                Shown on the document
+              </span>
             }
           />
           <CardBody className="grid gap-5 sm:grid-cols-2">
@@ -313,7 +330,9 @@ export function DocumentForm({
                   aria-label={`Item ${i + 1} description`}
                   placeholder="Description of work or product"
                   value={row.description}
-                  onChange={(e) => updateRow(i, { description: e.target.value })}
+                  onChange={(e) =>
+                    updateRow(i, { description: e.target.value })
+                  }
                 />
                 <Input
                   aria-label={`Item ${i + 1} quantity`}
@@ -323,7 +342,9 @@ export function DocumentForm({
                   inputMode="decimal"
                   className="text-right"
                   value={Number.isFinite(row.quantity) ? row.quantity : 0}
-                  onChange={(e) => updateRow(i, { quantity: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateRow(i, { quantity: parseFloat(e.target.value) || 0 })
+                  }
                 />
                 <Input
                   aria-label={`Item ${i + 1} unit price`}
@@ -333,10 +354,15 @@ export function DocumentForm({
                   inputMode="decimal"
                   className="text-right"
                   value={Number.isFinite(row.unitPrice) ? row.unitPrice : 0}
-                  onChange={(e) => updateRow(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateRow(i, { unitPrice: parseFloat(e.target.value) || 0 })
+                  }
                 />
                 <div className="text-right text-sm font-medium tabular-nums sm:px-2">
-                  {formatMoney(lineTotal(row.quantity, row.unitPrice), currencySymbol)}
+                  {formatMoney(
+                    lineTotal(row.quantity, row.unitPrice),
+                    currencySymbol,
+                  )}
                 </div>
                 <button
                   type="button"
@@ -353,27 +379,27 @@ export function DocumentForm({
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[40px_1fr_160px_96px_40px]">
-                  <span className="hidden sm:block" />
-                  <Input
-                    aria-label={`Item ${i + 1} specification`}
-                    placeholder="Specification / sub-description (optional)"
-                    value={row.detail}
-                    onChange={(e) => updateRow(i, { detail: e.target.value })}
-                  />
-                  <Input
-                    aria-label={`Item ${i + 1} standard`}
-                    placeholder="Standard (e.g. UL Listed)"
-                    value={row.standard}
-                    onChange={(e) => updateRow(i, { standard: e.target.value })}
-                  />
-                  <Input
-                    aria-label={`Item ${i + 1} unit`}
-                    placeholder="Unit"
-                    value={row.unit}
-                    onChange={(e) => updateRow(i, { unit: e.target.value })}
-                  />
-                  <span className="hidden sm:block" />
-                </div>
+                <span className="hidden sm:block" />
+                <Input
+                  aria-label={`Item ${i + 1} specification`}
+                  placeholder="Specification / sub-description (optional)"
+                  value={row.detail}
+                  onChange={(e) => updateRow(i, { detail: e.target.value })}
+                />
+                <Input
+                  aria-label={`Item ${i + 1} standard`}
+                  placeholder="Standard (e.g. UL Listed)"
+                  value={row.standard}
+                  onChange={(e) => updateRow(i, { standard: e.target.value })}
+                />
+                <Input
+                  aria-label={`Item ${i + 1} unit`}
+                  placeholder="Unit"
+                  value={row.unit}
+                  onChange={(e) => updateRow(i, { unit: e.target.value })}
+                />
+                <span className="hidden sm:block" />
+              </div>
             </div>
           ))}
 
@@ -468,7 +494,9 @@ export function DocumentForm({
             </SummaryRow>
 
             <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="font-display text-base font-semibold">Total</span>
+              <span className="font-display text-base font-semibold">
+                Total
+              </span>
               <span className="font-display text-xl font-semibold text-primary tabular-nums">
                 {formatMoney(totals.total, currencySymbol)}
               </span>
@@ -476,6 +504,73 @@ export function DocumentForm({
           </CardBody>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader
+          title="Commercial terms"
+          action={
+            <span className="text-xs text-muted-foreground">
+              Specific to this quotation
+            </span>
+          }
+        />
+        <CardBody className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="termsScope">Scope</Label>
+            <Textarea
+              id="termsScope"
+              name="termsScope"
+              rows={2}
+              defaultValue={defaults.termsScope ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="termsPrices">Prices</Label>
+            <Textarea
+              id="termsPrices"
+              name="termsPrices"
+              rows={2}
+              defaultValue={defaults.termsPrices ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="termsDelivery">Delivery</Label>
+            <Textarea
+              id="termsDelivery"
+              name="termsDelivery"
+              rows={2}
+              defaultValue={defaults.termsDelivery ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="termsWarranty">Warranty</Label>
+            <Textarea
+              id="termsWarranty"
+              name="termsWarranty"
+              rows={2}
+              defaultValue={defaults.termsWarranty ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="termsCompliance">Compliance</Label>
+            <Textarea
+              id="termsCompliance"
+              name="termsCompliance"
+              rows={2}
+              defaultValue={defaults.termsCompliance ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="termsPacking">Packing</Label>
+            <Textarea
+              id="termsPacking"
+              name="termsPacking"
+              rows={2}
+              defaultValue={defaults.termsPacking ?? ""}
+            />
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="flex items-center justify-end gap-3">
         <Link href={cancelHref} className={buttonClass("outline", "md")}>

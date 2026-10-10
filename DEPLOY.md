@@ -77,16 +77,21 @@ Create `~/vion-crm/.env`:
 ```bash
 DATABASE_PATH=/home/ubuntu/data/vion.db
 SESSION_SECRET=<output of: openssl rand -base64 32>
-AUTH_USERS=you@example.com:Your Name:<hash>,them@example.com:Their Name:<hash>
+AUTH_USERS=
 PDF_BASE_URL=http://127.0.0.1:3000
 PUPPETEER_EXECUTABLE_PATH=/snap/bin/chromium
 ```
 
-Generate each password hash on the VM (or locally) with:
+Add each login on the VM using the hidden password prompt. This appends a salted
+password hash to `.env`; the plaintext password is never stored:
 
 ```bash
-npm run auth:hash -- "the password"
+npm run auth:add -- you@example.com "Your Name"
+npm run auth:add -- them@example.com "Their Name"
 ```
+
+Restart the app after adding users. All configured users currently have the
+same permissions; role-based access control is not implemented.
 
 ### Copy the existing local database
 

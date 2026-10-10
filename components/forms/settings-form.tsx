@@ -305,10 +305,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
       <Card>
         <CardHeader
-          title="Quotation terms"
-          description="Boilerplate printed in the Commercial Terms grid on quotes."
+          title="Quotation signature"
+          description="Signature shown on quotations and other documents."
         />
-        <CardBody className="space-y-5">
+        <CardBody>
           <div>
             <Label htmlFor="signatoryName">Authorised signatory</Label>
             <Input
@@ -321,66 +321,6 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               as a digital signature.
             </Hint>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="termsScope">Scope</Label>
-              <Textarea
-                id="termsScope"
-                name="termsScope"
-                rows={2}
-                defaultValue={settings.termsScope}
-              />
-            </div>
-            <div>
-              <Label htmlFor="termsPrices">Prices</Label>
-              <Textarea
-                id="termsPrices"
-                name="termsPrices"
-                rows={2}
-                defaultValue={settings.termsPrices}
-              />
-            </div>
-            <div>
-              <Label htmlFor="termsDelivery">Delivery</Label>
-              <Textarea
-                id="termsDelivery"
-                name="termsDelivery"
-                rows={2}
-                defaultValue={settings.termsDelivery}
-              />
-            </div>
-            <div>
-              <Label htmlFor="termsWarranty">Warranty</Label>
-              <Textarea
-                id="termsWarranty"
-                name="termsWarranty"
-                rows={2}
-                defaultValue={settings.termsWarranty}
-              />
-            </div>
-            <div>
-              <Label htmlFor="termsCompliance">Compliance</Label>
-              <Textarea
-                id="termsCompliance"
-                name="termsCompliance"
-                rows={2}
-                defaultValue={settings.termsCompliance}
-              />
-            </div>
-            <div>
-              <Label htmlFor="termsPacking">Packing</Label>
-              <Textarea
-                id="termsPacking"
-                name="termsPacking"
-                rows={2}
-                defaultValue={settings.termsPacking}
-              />
-            </div>
-          </div>
-          <Hint>
-            Validity and Payment cells use the quote&rsquo;s own dates and
-            terms.
-          </Hint>
         </CardBody>
       </Card>
 

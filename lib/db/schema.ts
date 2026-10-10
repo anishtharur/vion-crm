@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * All money is stored in the smallest currency unit is NOT used here — instead we
@@ -119,6 +125,12 @@ export const quotes = sqliteTable("quotes", {
   enquiryRef: text("enquiry_ref").notNull().default(""),
   /** Contact person at the client ("Attn:" line). */
   attention: text("attention").notNull().default(""),
+  termsScope: text("terms_scope"),
+  termsPrices: text("terms_prices"),
+  termsDelivery: text("terms_delivery"),
+  termsWarranty: text("terms_warranty"),
+  termsCompliance: text("terms_compliance"),
+  termsPacking: text("terms_packing"),
   notes: text("notes").notNull().default(""),
   terms: text("terms").notNull().default(""),
   subtotal: real("subtotal").notNull().default(0),
@@ -159,35 +171,45 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const orders = sqliteTable("orders", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  number: text("number").notNull().unique(),
-  clientId: integer("client_id")
-    .notNull()
-    .references(() => clients.id, { onDelete: "restrict" }),
-  /** Source quote this order acknowledges, if converted from one. */
-  quoteId: integer("quote_id").references(() => quotes.id, {
-    onDelete: "set null",
-  }),
-  status: text("status").notNull().default("draft").$type<OrderStatus>(),
-  issueDate: text("issue_date").notNull(),
-  /** Promised delivery lead time, e.g. "6 weeks from confirmed PO". */
-  deliveryTime: text("delivery_time").notNull().default(""),
-  subject: text("subject").notNull().default(""),
-  projectName: text("project_name").notNull().default(""),
-  enquiryRef: text("enquiry_ref").notNull().default(""),
-  attention: text("attention").notNull().default(""),
-  notes: text("notes").notNull().default(""),
-  /** Payment terms agreed for the order. */
-  terms: text("terms").notNull().default(""),
-  subtotal: real("subtotal").notNull().default(0),
-  discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(5),
-  taxAmount: real("tax_amount").notNull().default(0),
-  total: real("total").notNull().default(0),
-  currency: text("currency").notNull().default("USD"),
-  ...timestamps,
-});
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    number: text("number").notNull().unique(),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    /** Source quote this order acknowledges, if converted from one. */
+    quoteId: integer("quote_id").references(() => quotes.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("draft").$type<OrderStatus>(),
+    issueDate: text("issue_date").notNull(),
+    /** Promised delivery lead time, e.g. "6 weeks from confirmed PO". */
+    deliveryTime: text("delivery_time").notNull().default(""),
+    subject: text("subject").notNull().default(""),
+    projectName: text("project_name").notNull().default(""),
+    enquiryRef: text("enquiry_ref").notNull().default(""),
+    attention: text("attention").notNull().default(""),
+    termsScope: text("terms_scope"),
+    termsPrices: text("terms_prices"),
+    termsDelivery: text("terms_delivery"),
+    termsWarranty: text("terms_warranty"),
+    termsCompliance: text("terms_compliance"),
+    termsPacking: text("terms_packing"),
+    notes: text("notes").notNull().default(""),
+    /** Payment terms agreed for the order. */
+    terms: text("terms").notNull().default(""),
+    subtotal: real("subtotal").notNull().default(0),
+    discount: real("discount").notNull().default(0),
+    taxRate: real("tax_rate").notNull().default(5),
+    taxAmount: real("tax_amount").notNull().default(0),
+    total: real("total").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("orders_quote_id_unique").on(table.quoteId)],
+);
 
 export const orderItems = sqliteTable("order_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -214,35 +236,52 @@ export const PROFORMA_STATUSES = [
 ] as const;
 export type ProformaStatus = (typeof PROFORMA_STATUSES)[number];
 
-export const proformas = sqliteTable("proformas", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  number: text("number").notNull().unique(),
-  clientId: integer("client_id")
-    .notNull()
-    .references(() => clients.id, { onDelete: "restrict" }),
-  quoteId: integer("quote_id").references(() => quotes.id, {
-    onDelete: "set null",
-  }),
-  orderId: integer("order_id").references(() => orders.id, {
-    onDelete: "set null",
-  }),
-  status: text("status").notNull().default("draft").$type<ProformaStatus>(),
-  issueDate: text("issue_date").notNull(),
-  validUntil: text("valid_until").notNull().default(""),
-  subject: text("subject").notNull().default(""),
-  projectName: text("project_name").notNull().default(""),
-  enquiryRef: text("enquiry_ref").notNull().default(""),
-  attention: text("attention").notNull().default(""),
-  notes: text("notes").notNull().default(""),
-  terms: text("terms").notNull().default(""),
-  subtotal: real("subtotal").notNull().default(0),
-  discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(5),
-  taxAmount: real("tax_amount").notNull().default(0),
-  total: real("total").notNull().default(0),
-  currency: text("currency").notNull().default("USD"),
-  ...timestamps,
-});
+export const proformas = sqliteTable(
+  "proformas",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    number: text("number").notNull().unique(),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    quoteId: integer("quote_id").references(() => quotes.id, {
+      onDelete: "set null",
+    }),
+    orderId: integer("order_id").references(() => orders.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("draft").$type<ProformaStatus>(),
+    issueDate: text("issue_date").notNull(),
+    validUntil: text("valid_until").notNull().default(""),
+    subject: text("subject").notNull().default(""),
+    projectName: text("project_name").notNull().default(""),
+    enquiryRef: text("enquiry_ref").notNull().default(""),
+    attention: text("attention").notNull().default(""),
+    termsScope: text("terms_scope"),
+    termsPrices: text("terms_prices"),
+    termsDelivery: text("terms_delivery"),
+    termsWarranty: text("terms_warranty"),
+    termsCompliance: text("terms_compliance"),
+    termsPacking: text("terms_packing"),
+    notes: text("notes").notNull().default(""),
+    terms: text("terms").notNull().default(""),
+    subtotal: real("subtotal").notNull().default(0),
+    discount: real("discount").notNull().default(0),
+    taxRate: real("tax_rate").notNull().default(5),
+    taxAmount: real("tax_amount").notNull().default(0),
+    total: real("total").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("proformas_order_id_unique")
+      .on(table.orderId)
+      .where(sql`${table.orderId} is not null`),
+    uniqueIndex("proformas_direct_quote_unique")
+      .on(table.quoteId)
+      .where(sql`${table.quoteId} is not null and ${table.orderId} is null`),
+  ],
+);
 
 export const proformaItems = sqliteTable("proforma_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -268,36 +307,58 @@ export const INVOICE_STATUSES = [
 ] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
-export const invoices = sqliteTable("invoices", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  number: text("number").notNull().unique(),
-  clientId: integer("client_id")
-    .notNull()
-    .references(() => clients.id, { onDelete: "restrict" }),
-  /** Source documents this invoice was generated from, if any. */
-  quoteId: integer("quote_id").references(() => quotes.id, {
-    onDelete: "set null",
-  }),
-  orderId: integer("order_id").references(() => orders.id, {
-    onDelete: "set null",
-  }),
-  proformaId: integer("proforma_id").references(() => proformas.id, {
-    onDelete: "set null",
-  }),
-  status: text("status").notNull().default("draft").$type<InvoiceStatus>(),
-  issueDate: text("issue_date").notNull(),
-  dueDate: text("due_date").notNull().default(""),
-  notes: text("notes").notNull().default(""),
-  terms: text("terms").notNull().default(""),
-  subtotal: real("subtotal").notNull().default(0),
-  discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(5),
-  taxAmount: real("tax_amount").notNull().default(0),
-  total: real("total").notNull().default(0),
-  amountPaid: real("amount_paid").notNull().default(0),
-  currency: text("currency").notNull().default("USD"),
-  ...timestamps,
-});
+export const invoices = sqliteTable(
+  "invoices",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    number: text("number").notNull().unique(),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    /** Source documents this invoice was generated from, if any. */
+    quoteId: integer("quote_id").references(() => quotes.id, {
+      onDelete: "set null",
+    }),
+    orderId: integer("order_id").references(() => orders.id, {
+      onDelete: "set null",
+    }),
+    proformaId: integer("proforma_id").references(() => proformas.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("draft").$type<InvoiceStatus>(),
+    issueDate: text("issue_date").notNull(),
+    dueDate: text("due_date").notNull().default(""),
+    termsScope: text("terms_scope"),
+    termsPrices: text("terms_prices"),
+    termsDelivery: text("terms_delivery"),
+    termsWarranty: text("terms_warranty"),
+    termsCompliance: text("terms_compliance"),
+    termsPacking: text("terms_packing"),
+    notes: text("notes").notNull().default(""),
+    terms: text("terms").notNull().default(""),
+    subtotal: real("subtotal").notNull().default(0),
+    discount: real("discount").notNull().default(0),
+    taxRate: real("tax_rate").notNull().default(5),
+    taxAmount: real("tax_amount").notNull().default(0),
+    total: real("total").notNull().default(0),
+    amountPaid: real("amount_paid").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("invoices_proforma_id_unique")
+      .on(table.proformaId)
+      .where(sql`${table.proformaId} is not null`),
+    uniqueIndex("invoices_direct_order_unique")
+      .on(table.orderId)
+      .where(sql`${table.orderId} is not null and ${table.proformaId} is null`),
+    uniqueIndex("invoices_direct_quote_unique")
+      .on(table.quoteId)
+      .where(
+        sql`${table.quoteId} is not null and ${table.orderId} is null and ${table.proformaId} is null`,
+      ),
+  ],
+);
 
 export const invoiceItems = sqliteTable("invoice_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),

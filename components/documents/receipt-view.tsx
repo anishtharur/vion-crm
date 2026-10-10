@@ -18,6 +18,17 @@ export function ReceiptView({
 }) {
   const code = invoice.currency;
   const sym = currencySymbol(code);
+  const terms = (
+    [
+      ["Scope", invoice.termsScope ?? settings.termsScope],
+      ["Prices", invoice.termsPrices ?? settings.termsPrices],
+      ["Delivery", invoice.termsDelivery ?? settings.termsDelivery],
+      ["Warranty", invoice.termsWarranty ?? settings.termsWarranty],
+      ["Compliance", invoice.termsCompliance ?? settings.termsCompliance],
+      ["Payment", invoice.terms || settings.paymentTerms],
+      ["Packing", invoice.termsPacking ?? settings.termsPacking],
+    ] as [string, string][]
+  ).filter(([, value]) => value.trim() !== "");
 
   return (
     <div className="doc-paper mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-white text-foreground shadow-[var(--shadow-card)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
@@ -42,8 +53,12 @@ export function ReceiptView({
           </div>
         </div>
         <div className="text-right text-xs leading-relaxed text-muted-foreground">
-          <p className="text-sm font-semibold text-foreground">{settings.companyName}</p>
-          {settings.address ? <p className="whitespace-pre-line">{settings.address}</p> : null}
+          <p className="text-sm font-semibold text-foreground">
+            {settings.companyName}
+          </p>
+          {settings.address ? (
+            <p className="whitespace-pre-line">{settings.address}</p>
+          ) : null}
           {settings.email ? <p>Email: {settings.email}</p> : null}
           {settings.gstin ? <p>GSTIN: {settings.gstin}</p> : null}
         </div>
@@ -104,22 +119,60 @@ export function ReceiptView({
 
         {/* Invoice running balance */}
         <dl className="mt-8 space-y-2 border-t border-border pt-6 text-sm">
-          <Row label={`Invoice ${invoice.number} total`} value={formatMoney(invoice.total, sym)} />
-          <Row label="Paid to date" value={formatMoney(invoice.amountPaid ?? 0, sym)} />
+          <Row
+            label={`Invoice ${invoice.number} total`}
+            value={formatMoney(invoice.total, sym)}
+          />
+          <Row
+            label="Paid to date"
+            value={formatMoney(invoice.amountPaid ?? 0, sym)}
+          />
           <div className="flex items-center justify-between border-t border-border pt-2">
             <span className="font-semibold">Balance due</span>
-            <span className="font-semibold tabular-nums">{formatMoney(balance, sym)}</span>
+            <span className="font-semibold tabular-nums">
+              {formatMoney(balance, sym)}
+            </span>
           </div>
         </dl>
+
+        {terms.length > 0 ? (
+          <div className="mt-8 border-t border-border pt-5">
+            <h2 className="font-display text-sm font-semibold text-q-green">
+              Commercial Terms &amp; Conditions
+            </h2>
+            <dl className="mt-2 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
+              {terms.map(([label, value]) => (
+                <div key={label} className="flex gap-3">
+                  <dt className="w-24 shrink-0 font-semibold text-foreground">
+                    {label}
+                  </dt>
+                  <dd className="text-muted-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
 
         {/* Sign-off */}
         <div className="mt-10 flex justify-end">
           <div className="w-56">
-            <p className="text-sm font-semibold text-foreground">For {settings.companyName}</p>
-            <div className="mt-10 border-t border-foreground/40" />
+            <p className="text-sm font-semibold text-foreground">
+              For {settings.companyName}
+            </p>
+            <div className="mt-2 flex h-10 items-end">
+              {settings.signatoryName ? (
+                <p
+                  className="-rotate-2 font-serif text-2xl italic leading-none text-q-green-mid"
+                  style={{ fontFamily: "cursive" }}
+                >
+                  {settings.signatoryName}
+                </p>
+              ) : null}
+            </div>
+            <div className="border-t border-foreground/40" />
             <p className="mt-1.5 text-xs text-muted-foreground">
               {settings.signatoryName
-                ? `${settings.signatoryName} · Authorised Signatory`
+                ? "Authorised Signatory · Digital Signature"
                 : "Authorised Signatory & Stamp"}
             </p>
           </div>

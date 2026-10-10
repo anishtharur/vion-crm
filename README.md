@@ -24,6 +24,18 @@ The default database is `./vion.db`. To use a different local SQLite file, set
 Production authentication requires `SESSION_SECRET` and `AUTH_USERS`. See
 `.env.example` for the environment variable descriptions.
 
+Users are configured in `.env` as comma-separated
+`email:Display Name:passwordHash` entries. Add a user with the secure prompt;
+the plaintext password is not written to `.env`:
+
+```bash
+npm run auth:add -- user@example.com "Display Name"
+```
+
+Restart the app after changing users. Passwords are stored as salted hashes,
+not recoverable plaintext. Currently, all configured accounts have the same
+permissions; admin/user roles are not implemented.
+
 ## Commands
 
 ```bash
@@ -32,7 +44,8 @@ npm run lint         # ESLint
 npm run build        # production build
 npm run db:push      # apply the Drizzle schema to the configured database
 npm run db:import -- ./vion-backup.db  # import SQLite data into an empty target
-npm run auth:hash -- "your password"   # create an AUTH_USERS password hash
+npm run auth:add -- user@example.com "Display Name"  # add login to .env securely
+npm run auth:hash                         # generate a password hash manually
 ```
 
 The importer requires `DATABASE_URL` (and a Turso token for cloud databases),
