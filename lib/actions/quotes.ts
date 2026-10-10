@@ -31,7 +31,12 @@ import {
   quoteSchema,
   type FormState,
 } from "@/lib/validation/schemas";
-import { itemCopy, pruneItems, readItemsJson, type PrunedItem } from "./_shared";
+import {
+  itemCopy,
+  pruneItems,
+  readItemsJson,
+  type PrunedItem,
+} from "./_shared";
 
 function parse(formData: FormData) {
   return quoteSchema.safeParse({
@@ -45,7 +50,7 @@ function parse(formData: FormData) {
     enquiryRef: formData.get("enquiryRef") ?? "",
     attention: formData.get("attention") ?? "",
     discount: formData.get("discount") ?? 0,
-    taxRate: formData.get("taxRate") ?? 0,
+    taxRate: formData.get("taxRate") ?? 5,
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
@@ -57,16 +62,18 @@ export async function createQuote(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
-  const settings = getSettings();
+  const settings = await getSettings();
 
-  const newId = db.transaction((tx) => {
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextQuoteNumber(settings.quotePrefix, tx);
     const quote = tx
       .insert(quotes)
       .values({
-        number: nextQuoteNumber(settings.quotePrefix),
+        number,
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
@@ -87,8 +94,9 @@ export async function createQuote(
       .returning({ id: quotes.id })
       .get();
 
-    insertQuoteItems(tx, quote.id, data.items);
-    return quote.id;
+    const insertedQuote = await quote;
+    await insertQuoteItems(tx, insertedQuote.id, data.items);
+    return insertedQuote.id;
   });
 
   revalidatePath("/quotes");
@@ -101,12 +109,14 @@ export async function updateQuote(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
 
-  db.transaction((tx) => {
-    tx.update(quotes)
+  await db.transaction(async (tx) => {
+    await tx
+      .update(quotes)
       .set({
         clientId: data.clientId,
         status: data.status,
@@ -128,8 +138,8 @@ export async function updateQuote(
       .where(eq(quotes.id, id))
       .run();
 
-    tx.delete(quoteItems).where(eq(quoteItems.quoteId, id)).run();
-    insertQuoteItems(tx, id, data.items);
+    await tx.delete(quoteItems).where(eq(quoteItems.quoteId, id)).run();
+    await insertQuoteItems(tx, id, data.items);
   });
 
   revalidatePath("/quotes");
@@ -144,7 +154,8 @@ export async function setQuoteStatus(
   if (!QUOTE_STATUSES.includes(status as QuoteStatus)) {
     return { ok: false, message: "Invalid status" };
   }
-  db.update(quotes)
+  await db
+    .update(quotes)
     .set({ status: status as QuoteStatus })
     .where(eq(quotes.id, id))
     .run();
@@ -158,25 +169,26 @@ export async function deleteQuote(
   _prev: FormState,
   _formData: FormData,
 ): Promise<FormState> {
-  db.delete(quotes).where(eq(quotes.id, id)).run();
+  await db.delete(quotes).where(eq(quotes.id, id)).run();
   revalidatePath("/quotes");
   redirect("/quotes");
 }
 
 /** Delete a quote from the list (stays on the list; no redirect). */
 export async function deleteQuoteRow(id: number): Promise<FormState> {
-  db.delete(quotes).where(eq(quotes.id, id)).run();
+  await db.delete(quotes).where(eq(quotes.id, id)).run();
   revalidatePath("/quotes");
   return { ok: true };
 }
 
 /** Create an invoice from an existing quote, copying line items and totals. */
 export async function convertQuoteToInvoice(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const quote = tx.select().from(quotes).where(eq(quotes.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
+    const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(quoteItems)
       .where(eq(quoteItems.quoteId, id))
@@ -187,7 +199,7 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
     const invoice = tx
       .insert(invoices)
       .values({
-        number: nextInvoiceNumber(settings.invoicePrefix),
+        number,
         clientId: quote.clientId,
         quoteId: quote.id,
         status: "draft",
@@ -205,11 +217,13 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
       })
       .returning({ id: invoices.id })
       .get();
+    const insertedInvoice = await invoice;
 
     for (const it of items) {
-      tx.insert(invoiceItems)
+      await tx
+        .insert(invoiceItems)
         .values({
-          invoiceId: invoice.id,
+          invoiceId: insertedInvoice.id,
           description: it.description,
           detail: it.detail,
           standard: it.standard,
@@ -224,9 +238,13 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
 
     // Reflect that the quote has been actioned.
     if (quote.status === "draft" || quote.status === "sent") {
-      tx.update(quotes).set({ status: "accepted" }).where(eq(quotes.id, id)).run();
+      await tx
+        .update(quotes)
+        .set({ status: "accepted" })
+        .where(eq(quotes.id, id))
+        .run();
     }
-    return invoice.id;
+    return insertedInvoice.id;
   });
 
   revalidatePath("/quotes");
@@ -236,11 +254,12 @@ export async function convertQuoteToInvoice(id: number): Promise<FormState> {
 
 /** Create an Order Acknowledgement from a quote, copying line items and totals. */
 export async function convertQuoteToOrder(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const quote = tx.select().from(quotes).where(eq(quotes.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextOrderNumber(settings.orderPrefix, tx);
+    const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(quoteItems)
       .where(eq(quoteItems.quoteId, id))
@@ -251,7 +270,7 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
     const order = tx
       .insert(orders)
       .values({
-        number: nextOrderNumber(settings.orderPrefix),
+        number,
         clientId: quote.clientId,
         quoteId: quote.id,
         status: "draft",
@@ -272,13 +291,21 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
       })
       .returning({ id: orders.id })
       .get();
+    const insertedOrder = await order;
     for (const it of items) {
-      tx.insert(orderItems).values({ orderId: order.id, ...itemCopy(it) }).run();
+      await tx
+        .insert(orderItems)
+        .values({ orderId: insertedOrder.id, ...itemCopy(it) })
+        .run();
     }
     if (quote.status === "draft" || quote.status === "sent") {
-      tx.update(quotes).set({ status: "accepted" }).where(eq(quotes.id, id)).run();
+      await tx
+        .update(quotes)
+        .set({ status: "accepted" })
+        .where(eq(quotes.id, id))
+        .run();
     }
-    return order.id;
+    return insertedOrder.id;
   });
 
   revalidatePath("/quotes");
@@ -288,11 +315,12 @@ export async function convertQuoteToOrder(id: number): Promise<FormState> {
 
 /** Create a Pro-forma Invoice directly from a quote, copying line items and totals. */
 export async function convertQuoteToProforma(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const quote = tx.select().from(quotes).where(eq(quotes.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextProformaNumber(settings.proformaPrefix, tx);
+    const quote = await tx.select().from(quotes).where(eq(quotes.id, id)).get();
     if (!quote) throw new Error("Quote not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(quoteItems)
       .where(eq(quoteItems.quoteId, id))
@@ -303,7 +331,7 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
     const proforma = tx
       .insert(proformas)
       .values({
-        number: nextProformaNumber(settings.proformaPrefix),
+        number,
         clientId: quote.clientId,
         quoteId: quote.id,
         status: "draft",
@@ -324,10 +352,14 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
       })
       .returning({ id: proformas.id })
       .get();
+    const insertedProforma = await proforma;
     for (const it of items) {
-      tx.insert(proformaItems).values({ proformaId: proforma.id, ...itemCopy(it) }).run();
+      await tx
+        .insert(proformaItems)
+        .values({ proformaId: insertedProforma.id, ...itemCopy(it) })
+        .run();
     }
-    return proforma.id;
+    return insertedProforma.id;
   });
 
   revalidatePath("/quotes");
@@ -339,9 +371,10 @@ export async function convertQuoteToProforma(id: number): Promise<FormState> {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function insertQuoteItems(tx: Tx, quoteId: number, items: PrunedItem[]) {
-  items.forEach((item, index) => {
-    tx.insert(quoteItems)
+async function insertQuoteItems(tx: Tx, quoteId: number, items: PrunedItem[]) {
+  for (const [index, item] of items.entries()) {
+    await tx
+      .insert(quoteItems)
       .values({
         quoteId,
         description: item.description,
@@ -354,5 +387,5 @@ function insertQuoteItems(tx: Tx, quoteId: number, items: PrunedItem[]) {
         sortOrder: index,
       })
       .run();
-  });
+  }
 }

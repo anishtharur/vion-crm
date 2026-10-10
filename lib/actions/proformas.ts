@@ -22,7 +22,12 @@ import {
   proformaSchema,
   type FormState,
 } from "@/lib/validation/schemas";
-import { itemCopy, pruneItems, readItemsJson, type PrunedItem } from "./_shared";
+import {
+  itemCopy,
+  pruneItems,
+  readItemsJson,
+  type PrunedItem,
+} from "./_shared";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -38,16 +43,21 @@ function parse(formData: FormData) {
     enquiryRef: formData.get("enquiryRef") ?? "",
     attention: formData.get("attention") ?? "",
     discount: formData.get("discount") ?? 0,
-    taxRate: formData.get("taxRate") ?? 0,
+    taxRate: formData.get("taxRate") ?? 5,
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
   });
 }
 
-function insertProformaItems(tx: Tx, proformaId: number, items: PrunedItem[]) {
-  items.forEach((item, index) => {
-    tx.insert(proformaItems)
+async function insertProformaItems(
+  tx: Tx,
+  proformaId: number,
+  items: PrunedItem[],
+) {
+  for (const [index, item] of items.entries()) {
+    await tx
+      .insert(proformaItems)
       .values({
         proformaId,
         description: item.description,
@@ -60,7 +70,7 @@ function insertProformaItems(tx: Tx, proformaId: number, items: PrunedItem[]) {
         sortOrder: index,
       })
       .run();
-  });
+  }
 }
 
 export async function createProforma(
@@ -68,16 +78,18 @@ export async function createProforma(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
-  const settings = getSettings();
+  const settings = await getSettings();
 
-  const newId = db.transaction((tx) => {
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextProformaNumber(settings.proformaPrefix, tx);
     const proforma = tx
       .insert(proformas)
       .values({
-        number: nextProformaNumber(settings.proformaPrefix),
+        number,
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
@@ -97,8 +109,9 @@ export async function createProforma(
       })
       .returning({ id: proformas.id })
       .get();
-    insertProformaItems(tx, proforma.id, data.items);
-    return proforma.id;
+    const insertedProforma = await proforma;
+    await insertProformaItems(tx, insertedProforma.id, data.items);
+    return insertedProforma.id;
   });
 
   revalidatePath("/proformas");
@@ -111,12 +124,14 @@ export async function updateProforma(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
 
-  db.transaction((tx) => {
-    tx.update(proformas)
+  await db.transaction(async (tx) => {
+    await tx
+      .update(proformas)
       .set({
         clientId: data.clientId,
         status: data.status,
@@ -137,8 +152,11 @@ export async function updateProforma(
       })
       .where(eq(proformas.id, id))
       .run();
-    tx.delete(proformaItems).where(eq(proformaItems.proformaId, id)).run();
-    insertProformaItems(tx, id, data.items);
+    await tx
+      .delete(proformaItems)
+      .where(eq(proformaItems.proformaId, id))
+      .run();
+    await insertProformaItems(tx, id, data.items);
   });
 
   revalidatePath("/proformas");
@@ -153,7 +171,8 @@ export async function setProformaStatus(
   if (!PROFORMA_STATUSES.includes(status as ProformaStatus)) {
     return { ok: false, message: "Invalid status" };
   }
-  db.update(proformas)
+  await db
+    .update(proformas)
     .set({ status: status as ProformaStatus })
     .where(eq(proformas.id, id))
     .run();
@@ -167,25 +186,30 @@ export async function deleteProforma(
   _prev: FormState,
   _formData: FormData,
 ): Promise<FormState> {
-  db.delete(proformas).where(eq(proformas.id, id)).run();
+  await db.delete(proformas).where(eq(proformas.id, id)).run();
   revalidatePath("/proformas");
   redirect("/proformas");
 }
 
 /** Delete a pro-forma from the list (stays on the list; no redirect). */
 export async function deleteProformaRow(id: number): Promise<FormState> {
-  db.delete(proformas).where(eq(proformas.id, id)).run();
+  await db.delete(proformas).where(eq(proformas.id, id)).run();
   revalidatePath("/proformas");
   return { ok: true };
 }
 
 /** Create an Invoice from a pro-forma, copying items and totals. */
 export async function convertProformaToInvoice(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const proforma = tx.select().from(proformas).where(eq(proformas.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
+    const proforma = await tx
+      .select()
+      .from(proformas)
+      .where(eq(proformas.id, id))
+      .get();
     if (!proforma) throw new Error("Pro-forma not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(proformaItems)
       .where(eq(proformaItems.proformaId, id))
@@ -196,7 +220,7 @@ export async function convertProformaToInvoice(id: number): Promise<FormState> {
     const invoice = tx
       .insert(invoices)
       .values({
-        number: nextInvoiceNumber(settings.invoicePrefix),
+        number,
         clientId: proforma.clientId,
         quoteId: proforma.quoteId ?? null,
         orderId: proforma.orderId ?? null,
@@ -216,10 +240,14 @@ export async function convertProformaToInvoice(id: number): Promise<FormState> {
       })
       .returning({ id: invoices.id })
       .get();
+    const insertedInvoice = await invoice;
     for (const it of items) {
-      tx.insert(invoiceItems).values({ invoiceId: invoice.id, ...itemCopy(it) }).run();
+      await tx
+        .insert(invoiceItems)
+        .values({ invoiceId: insertedInvoice.id, ...itemCopy(it) })
+        .run();
     }
-    return invoice.id;
+    return insertedInvoice.id;
   });
 
   revalidatePath("/proformas");

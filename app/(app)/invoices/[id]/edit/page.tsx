@@ -17,17 +17,22 @@ export default async function EditInvoicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getInvoice(Number(id));
+  const found = await getInvoice(Number(id));
   if (!found) notFound();
 
   const { invoice, items } = found;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const action = updateInvoice.bind(null, invoice.id);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Edit ${invoice.number}`} description="Update this invoice." />
+      <PageHeader
+        title={`Edit ${invoice.number}`}
+        description="Update this invoice."
+      />
       <DocumentForm
         kind="invoice"
         action={action}

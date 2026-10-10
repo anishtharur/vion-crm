@@ -13,11 +13,11 @@ export default async function PrintProformaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getProforma(Number(id));
+  const found = await getProforma(Number(id));
   if (!found) notFound();
 
   const { proforma, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <>

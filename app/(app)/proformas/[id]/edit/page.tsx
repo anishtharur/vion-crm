@@ -17,17 +17,22 @@ export default async function EditProformaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getProforma(Number(id));
+  const found = await getProforma(Number(id));
   if (!found) notFound();
 
   const { proforma, items } = found;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const action = updateProforma.bind(null, proforma.id);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Edit ${proforma.number}`} description="Update this pro-forma." />
+      <PageHeader
+        title={`Edit ${proforma.number}`}
+        description="Update this pro-forma."
+      />
       <DocumentForm
         kind="proforma"
         action={action}

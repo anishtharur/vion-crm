@@ -27,11 +27,11 @@ export default async function QuoteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getQuote(Number(id));
+  const found = await getQuote(Number(id));
   if (!found) notFound();
 
   const { quote, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <div className="space-y-6">
@@ -45,7 +45,10 @@ export default async function QuoteDetailPage({
               statuses={QUOTE_STATUSES}
               action={setQuoteStatus.bind(null, quote.id)}
             />
-            <Link href={`/quotes/${quote.id}/edit`} className={buttonClass("outline", "md")}>
+            <Link
+              href={`/quotes/${quote.id}/edit`}
+              className={buttonClass("outline", "md")}
+            >
               <Pencil className="h-4 w-4" />
               Edit
             </Link>

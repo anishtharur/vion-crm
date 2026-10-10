@@ -66,7 +66,7 @@ export async function GET(
   const nameParam = url.searchParams.get("name");
   const filename = `${(nameParam || `${type}-${id}`).replace(/[^a-zA-Z0-9._-]/g, "-")}.pdf`;
 
-  const settings = getSettings();
+  const settings = await getSettings();
 
   // Running header/footer repeated on every page. `pageNumber`/`totalPages`
   // spans are filled in by Chromium.

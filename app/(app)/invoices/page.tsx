@@ -19,8 +19,10 @@ export default async function InvoicesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = parseListParams(await searchParams, { sortable: Object.keys(INVOICE_SORT) });
-  const { rows, total, page, pageCount } = listInvoices(params);
+  const params = parseListParams(await searchParams, {
+    sortable: Object.keys(INVOICE_SORT),
+  });
+  const { rows, total, page, pageCount } = await listInvoices(params);
 
   return (
     <div className="space-y-6">
@@ -42,7 +44,10 @@ export default async function InvoicesPage({
             title="No invoices yet"
             description="Create an invoice or convert an accepted quote."
             action={
-              <Link href="/invoices/new" className={buttonClass("primary", "md")}>
+              <Link
+                href="/invoices/new"
+                className={buttonClass("primary", "md")}
+              >
                 <Plus className="h-4 w-4" />
                 New invoice
               </Link>
@@ -71,23 +76,40 @@ export default async function InvoicesPage({
               confirm: `Delete ${inv.number}? This cannot be undone.`,
             },
             cells: [
-              <Link key="n" href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+              <Link
+                key="n"
+                href={`/invoices/${inv.id}`}
+                className="font-medium text-primary hover:underline"
+              >
                 {inv.number}
               </Link>,
               <div key="c">
-                <Link href={`/clients/${inv.clientId}`} className="hover:text-primary">
+                <Link
+                  href={`/clients/${inv.clientId}`}
+                  className="hover:text-primary"
+                >
                   {inv.clientName}
                 </Link>
                 {inv.clientCompany ? (
-                  <span className="block text-xs text-muted-foreground">{inv.clientCompany}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {inv.clientCompany}
+                  </span>
                 ) : null}
               </div>,
-              <span key="d" className="text-muted-foreground">{formatDate(inv.dueDate)}</span>,
+              <span key="d" className="text-muted-foreground">
+                {formatDate(inv.dueDate)}
+              </span>,
               <StatusBadge key="s" status={inv.displayStatus} />,
-              <span key="t" className="font-medium">{formatMoney(inv.total, currencySymbol(inv.currency))}</span>,
+              <span key="t" className="font-medium">
+                {formatMoney(inv.total, currencySymbol(inv.currency))}
+              </span>,
               <span
                 key="b"
-                className={inv.balance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}
+                className={
+                  inv.balance > 0
+                    ? "font-medium text-destructive"
+                    : "text-muted-foreground"
+                }
               >
                 {formatMoney(inv.balance, currencySymbol(inv.currency))}
               </span>,

@@ -13,11 +13,11 @@ export default async function PrintReceiptPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getReceipt(Number(id));
+  const found = await getReceipt(Number(id));
   if (!found) notFound();
 
   const { payment, invoice, client, invoiceBalance } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <>

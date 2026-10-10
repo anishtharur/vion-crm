@@ -31,7 +31,7 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = getClientDetail(Number(id));
+  const detail = await getClientDetail(Number(id));
   if (!detail) notFound();
 
   const { client, quotes, invoices } = detail;
@@ -64,13 +64,23 @@ export default async function ClientDetailPage({
         <Card className="lg:col-span-1">
           <CardHeader title="Contact details" />
           <CardBody className="space-y-3 text-sm">
-            <ContactRow icon={Mail} value={client.email} href={client.email ? `mailto:${client.email}` : undefined} />
-            <ContactRow icon={Phone} value={client.phone} href={client.phone ? `tel:${client.phone}` : undefined} />
+            <ContactRow
+              icon={Mail}
+              value={client.email}
+              href={client.email ? `mailto:${client.email}` : undefined}
+            />
+            <ContactRow
+              icon={Phone}
+              value={client.phone}
+              href={client.phone ? `tel:${client.phone}` : undefined}
+            />
             <ContactRow icon={Printer} value={client.fax} />
             <ContactRow icon={MapPin} value={client.billingAddress} multiline />
             <ContactRow
               icon={Globe}
-              value={[client.postalCode, client.country].filter(Boolean).join(", ")}
+              value={[client.postalCode, client.country]
+                .filter(Boolean)
+                .join(", ")}
             />
             {client.notes ? (
               <div className="rounded-lg bg-surface-muted px-3 py-2 text-muted-foreground">
@@ -167,11 +177,16 @@ function ContactRow({
       {value}
     </a>
   ) : (
-    <span className={multiline ? "whitespace-pre-line" : undefined}>{value}</span>
+    <span className={multiline ? "whitespace-pre-line" : undefined}>
+      {value}
+    </span>
   );
   return (
     <div className="flex items-start gap-3">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <Icon
+        className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
       <div className="min-w-0 break-words text-foreground">{content}</div>
     </div>
   );
@@ -203,9 +218,15 @@ function DocTable({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="transition-colors hover:bg-surface-muted/50">
+            <tr
+              key={r.id}
+              className="transition-colors hover:bg-surface-muted/50"
+            >
               <Td>
-                <Link href={r.href} className="font-medium text-primary hover:underline">
+                <Link
+                  href={r.href}
+                  className="font-medium text-primary hover:underline"
+                >
                   {r.number}
                 </Link>
               </Td>

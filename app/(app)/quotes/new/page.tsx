@@ -15,13 +15,18 @@ export default async function NewQuotePage({
   searchParams: Promise<{ clientId?: string }>;
 }) {
   const { clientId } = await searchParams;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const issueDate = todayISO();
 
   return (
     <div className="space-y-6">
-      <PageHeader title="New quote" description="Build an estimate for a client." />
+      <PageHeader
+        title="New quote"
+        description="Build an estimate for a client."
+      />
       <DocumentForm
         kind="quote"
         action={createQuote}

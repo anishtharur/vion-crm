@@ -23,8 +23,8 @@ import { formatDate, formatMoney } from "@/lib/utils/format";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const d = getDashboard();
-  const { currencySymbol: sym, companyName } = getSettings();
+  const [d, settings] = await Promise.all([getDashboard(), getSettings()]);
+  const { currencySymbol: sym, companyName } = settings;
 
   return (
     <div className="space-y-6">
@@ -49,7 +49,11 @@ export default async function DashboardPage() {
         <StatCard
           label="Outstanding"
           value={formatMoney(d.outstanding, sym)}
-          hint={d.overdueAmount > 0 ? `${formatMoney(d.overdueAmount, sym)} overdue` : "All on track"}
+          hint={
+            d.overdueAmount > 0
+              ? `${formatMoney(d.overdueAmount, sym)} overdue`
+              : "All on track"
+          }
           icon={CircleDollarSign}
           href="/invoices"
           accent
@@ -76,7 +80,10 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Cash collected" description="Payments received over the last 6 months." />
+          <CardHeader
+            title="Cash collected"
+            description="Payments received over the last 6 months."
+          />
           <CardBody>
             <RevenueChart data={d.monthly} currencySymbol={sym} />
           </CardBody>
@@ -95,7 +102,10 @@ export default async function DashboardPage() {
           <CardHeader
             title="Recent quotes"
             action={
-              <Link href="/quotes" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <Link
+                href="/quotes"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
                 View all <ArrowRight className="h-4 w-4" />
               </Link>
             }
@@ -121,7 +131,10 @@ export default async function DashboardPage() {
           <CardHeader
             title="Recent invoices"
             action={
-              <Link href="/invoices" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <Link
+                href="/invoices"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
                 View all <ArrowRight className="h-4 w-4" />
               </Link>
             }
@@ -164,7 +177,11 @@ function RecentList({
   empty: string;
 }) {
   if (rows.length === 0) {
-    return <p className="px-5 py-8 text-center text-sm text-muted-foreground">{empty}</p>;
+    return (
+      <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+        {empty}
+      </p>
+    );
   }
   return (
     <ul className="divide-y divide-border">

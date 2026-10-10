@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vion CRM
 
-## Getting Started
+A CRM and invoicing app for managing clients, quotes, sales orders, pro-forma
+invoices, invoices, and payment receipts. It uses Next.js 16, Drizzle, and
+SQLite. Production can keep SQLite on a single VM or use Turso/libSQL.
 
-First, run the development server:
+## Requirements
+
+- Node.js 22 LTS
+- npm
+
+## Local development
 
 ```bash
+npm ci
+npm run db:push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The default database is `./vion.db`. To use a different local SQLite file, set
+`DATABASE_PATH`. To use a Turso database, set `DATABASE_URL` and
+`DATABASE_AUTH_TOKEN`; `DATABASE_URL` takes precedence over `DATABASE_PATH`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Production authentication requires `SESSION_SECRET` and `AUTH_USERS`. See
+`.env.example` for the environment variable descriptions.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Commands
 
-## Learn More
+```bash
+npm run dev          # local development server
+npm run lint         # ESLint
+npm run build        # production build
+npm run db:push      # apply the Drizzle schema to the configured database
+npm run db:import -- ./vion-backup.db  # import SQLite data into an empty target
+npm run auth:hash -- "your password"   # create an AUTH_USERS password hash
+```
 
-To learn more about Next.js, take a look at the following resources:
+The importer requires `DATABASE_URL` (and a Turso token for cloud databases),
+preserves IDs, and refuses to import if any destination application table is
+populated. Back up the source first and verify imported counts before cutover.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [DEPLOY.md](DEPLOY.md) for the Oracle Cloud Always Free VM + SQLite setup,
+PDF/Chromium configuration, domain/TLS setup, and database recovery guidance.

@@ -17,8 +17,10 @@ export default async function ReceiptsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = parseListParams(await searchParams, { sortable: Object.keys(RECEIPT_SORT) });
-  const { rows, total, page, pageCount } = listReceipts(params);
+  const params = parseListParams(await searchParams, {
+    sortable: Object.keys(RECEIPT_SORT),
+  });
+  const { rows, total, page, pageCount } = await listReceipts(params);
 
   return (
     <div className="space-y-6">
@@ -65,12 +67,20 @@ export default async function ReceiptsPage({
               >
                 {r.number || `#${r.id}`}
               </a>,
-              <Link key="a" href={`/invoices/${r.invoiceId}`} className="text-muted-foreground hover:text-primary">
+              <Link
+                key="a"
+                href={`/invoices/${r.invoiceId}`}
+                className="text-muted-foreground hover:text-primary"
+              >
                 {r.invoiceNumber}
               </Link>,
               <span key="c">{r.clientName}</span>,
-              <span key="d" className="text-muted-foreground">{formatDate(r.paidOn)}</span>,
-              <span key="amt" className="font-medium">{formatMoney(r.amount, currencySymbol(r.currency))}</span>,
+              <span key="d" className="text-muted-foreground">
+                {formatDate(r.paidOn)}
+              </span>,
+              <span key="amt" className="font-medium">
+                {formatMoney(r.amount, currencySymbol(r.currency))}
+              </span>,
             ],
           }))}
         />

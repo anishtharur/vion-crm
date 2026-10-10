@@ -17,17 +17,22 @@ export default async function EditQuotePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getQuote(Number(id));
+  const found = await getQuote(Number(id));
   if (!found) notFound();
 
   const { quote, items } = found;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const action = updateQuote.bind(null, quote.id);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Edit ${quote.number}`} description="Update this quote." />
+      <PageHeader
+        title={`Edit ${quote.number}`}
+        description="Update this quote."
+      />
       <DocumentForm
         kind="quote"
         action={action}

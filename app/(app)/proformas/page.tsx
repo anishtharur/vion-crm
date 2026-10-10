@@ -19,8 +19,10 @@ export default async function ProformasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = parseListParams(await searchParams, { sortable: Object.keys(PROFORMA_SORT) });
-  const { rows, total, page, pageCount } = listProformas(params);
+  const params = parseListParams(await searchParams, {
+    sortable: Object.keys(PROFORMA_SORT),
+  });
+  const { rows, total, page, pageCount } = await listProformas(params);
 
   return (
     <div className="space-y-6">
@@ -42,7 +44,10 @@ export default async function ProformasPage({
             title="No pro-formas yet"
             description="Create a pro-forma directly or convert one from a quote or order."
             action={
-              <Link href="/proformas/new" className={buttonClass("primary", "md")}>
+              <Link
+                href="/proformas/new"
+                className={buttonClass("primary", "md")}
+              >
                 <Plus className="h-4 w-4" />
                 New pro-forma
               </Link>
@@ -70,20 +75,33 @@ export default async function ProformasPage({
               confirm: `Delete ${p.number}? This cannot be undone.`,
             },
             cells: [
-              <Link key="n" href={`/proformas/${p.id}`} className="font-medium text-primary hover:underline">
+              <Link
+                key="n"
+                href={`/proformas/${p.id}`}
+                className="font-medium text-primary hover:underline"
+              >
                 {p.number}
               </Link>,
               <div key="c">
-                <Link href={`/clients/${p.clientId}`} className="hover:text-primary">
+                <Link
+                  href={`/clients/${p.clientId}`}
+                  className="hover:text-primary"
+                >
                   {p.clientName}
                 </Link>
                 {p.clientCompany ? (
-                  <span className="block text-xs text-muted-foreground">{p.clientCompany}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {p.clientCompany}
+                  </span>
                 ) : null}
               </div>,
-              <span key="d" className="text-muted-foreground">{formatDate(p.issueDate)}</span>,
+              <span key="d" className="text-muted-foreground">
+                {formatDate(p.issueDate)}
+              </span>,
               <StatusBadge key="s" status={p.status} />,
-              <span key="t" className="font-medium">{formatMoney(p.total, currencySymbol(p.currency))}</span>,
+              <span key="t" className="font-medium">
+                {formatMoney(p.total, currencySymbol(p.currency))}
+              </span>,
             ],
           }))}
         />

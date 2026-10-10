@@ -28,33 +28,36 @@ export const RECEIPT_SORT = {
 } as const;
 
 /** All recorded payments (each is a numbered Payment Receipt). */
-export function listReceipts(params: ListParams): Paged<ReceiptListRow> {
+export async function listReceipts(
+  params: ListParams,
+): Promise<Paged<ReceiptListRow>> {
   const col =
     (params.sort && RECEIPT_SORT[params.sort as keyof typeof RECEIPT_SORT]) ||
     payments.createdAt;
   const orderBy = params.dir === "asc" ? asc(col) : desc(col);
 
-  const total = db.select({ v: count() }).from(payments).get()?.v ?? 0;
-  const rows = db
-    .select({
-      payment: payments,
-      invoiceNumber: invoices.number,
-      clientName: clients.name,
-      currency: invoices.currency,
-    })
-    .from(payments)
-    .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
-    .innerJoin(clients, eq(invoices.clientId, clients.id))
-    .orderBy(orderBy)
-    .limit(params.pageSize)
-    .offset(params.offset)
-    .all()
-    .map((r) => ({
-      ...r.payment,
-      invoiceNumber: r.invoiceNumber,
-      clientName: r.clientName,
-      currency: r.currency,
-    }));
+  const total = (await db.select({ v: count() }).from(payments).get())?.v ?? 0;
+  const rows = (
+    await db
+      .select({
+        payment: payments,
+        invoiceNumber: invoices.number,
+        clientName: clients.name,
+        currency: invoices.currency,
+      })
+      .from(payments)
+      .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
+      .innerJoin(clients, eq(invoices.clientId, clients.id))
+      .orderBy(orderBy)
+      .limit(params.pageSize)
+      .offset(params.offset)
+      .all()
+  ).map((r) => ({
+    ...r.payment,
+    invoiceNumber: r.invoiceNumber,
+    clientName: r.clientName,
+    currency: r.currency,
+  }));
 
   return paged(rows, total, params);
 }
@@ -68,16 +71,26 @@ export type ReceiptDetail = {
   invoiceBalance: number;
 };
 
-export function getReceipt(id: number): ReceiptDetail | undefined {
-  const payment = db.select().from(payments).where(eq(payments.id, id)).get();
+export async function getReceipt(
+  id: number,
+): Promise<ReceiptDetail | undefined> {
+  const payment = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.id, id))
+    .get();
   if (!payment) return undefined;
-  const invoice = db
+  const invoice = await db
     .select()
     .from(invoices)
     .where(eq(invoices.id, payment.invoiceId))
     .get();
   if (!invoice) return undefined;
-  const client = db.select().from(clients).where(eq(clients.id, invoice.clientId)).get();
+  const client = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, invoice.clientId))
+    .get();
   if (!client) return undefined;
   return {
     payment,

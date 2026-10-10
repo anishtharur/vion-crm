@@ -28,7 +28,12 @@ import {
   orderSchema,
   type FormState,
 } from "@/lib/validation/schemas";
-import { itemCopy, pruneItems, readItemsJson, type PrunedItem } from "./_shared";
+import {
+  itemCopy,
+  pruneItems,
+  readItemsJson,
+  type PrunedItem,
+} from "./_shared";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -44,16 +49,17 @@ function parse(formData: FormData) {
     enquiryRef: formData.get("enquiryRef") ?? "",
     attention: formData.get("attention") ?? "",
     discount: formData.get("discount") ?? 0,
-    taxRate: formData.get("taxRate") ?? 0,
+    taxRate: formData.get("taxRate") ?? 5,
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
   });
 }
 
-function insertOrderItems(tx: Tx, orderId: number, items: PrunedItem[]) {
-  items.forEach((item, index) => {
-    tx.insert(orderItems)
+async function insertOrderItems(tx: Tx, orderId: number, items: PrunedItem[]) {
+  for (const [index, item] of items.entries()) {
+    await tx
+      .insert(orderItems)
       .values({
         orderId,
         description: item.description,
@@ -66,7 +72,7 @@ function insertOrderItems(tx: Tx, orderId: number, items: PrunedItem[]) {
         sortOrder: index,
       })
       .run();
-  });
+  }
 }
 
 export async function createOrder(
@@ -74,16 +80,18 @@ export async function createOrder(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
-  const settings = getSettings();
+  const settings = await getSettings();
 
-  const newId = db.transaction((tx) => {
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextOrderNumber(settings.orderPrefix, tx);
     const order = tx
       .insert(orders)
       .values({
-        number: nextOrderNumber(settings.orderPrefix),
+        number,
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
@@ -103,8 +111,9 @@ export async function createOrder(
       })
       .returning({ id: orders.id })
       .get();
-    insertOrderItems(tx, order.id, data.items);
-    return order.id;
+    const insertedOrder = await order;
+    await insertOrderItems(tx, insertedOrder.id, data.items);
+    return insertedOrder.id;
   });
 
   revalidatePath("/orders");
@@ -117,12 +126,14 @@ export async function updateOrder(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
 
-  db.transaction((tx) => {
-    tx.update(orders)
+  await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
       .set({
         clientId: data.clientId,
         status: data.status,
@@ -143,8 +154,8 @@ export async function updateOrder(
       })
       .where(eq(orders.id, id))
       .run();
-    tx.delete(orderItems).where(eq(orderItems.orderId, id)).run();
-    insertOrderItems(tx, id, data.items);
+    await tx.delete(orderItems).where(eq(orderItems.orderId, id)).run();
+    await insertOrderItems(tx, id, data.items);
   });
 
   revalidatePath("/orders");
@@ -152,11 +163,15 @@ export async function updateOrder(
   redirect(`/orders/${id}`);
 }
 
-export async function setOrderStatus(id: number, status: string): Promise<FormState> {
+export async function setOrderStatus(
+  id: number,
+  status: string,
+): Promise<FormState> {
   if (!ORDER_STATUSES.includes(status as OrderStatus)) {
     return { ok: false, message: "Invalid status" };
   }
-  db.update(orders)
+  await db
+    .update(orders)
     .set({ status: status as OrderStatus })
     .where(eq(orders.id, id))
     .run();
@@ -170,25 +185,26 @@ export async function deleteOrder(
   _prev: FormState,
   _formData: FormData,
 ): Promise<FormState> {
-  db.delete(orders).where(eq(orders.id, id)).run();
+  await db.delete(orders).where(eq(orders.id, id)).run();
   revalidatePath("/orders");
   redirect("/orders");
 }
 
 /** Delete an order from the list (stays on the list; no redirect). */
 export async function deleteOrderRow(id: number): Promise<FormState> {
-  db.delete(orders).where(eq(orders.id, id)).run();
+  await db.delete(orders).where(eq(orders.id, id)).run();
   revalidatePath("/orders");
   return { ok: true };
 }
 
 /** Create a Pro-forma Invoice from an order, copying items and totals. */
 export async function convertOrderToProforma(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const order = tx.select().from(orders).where(eq(orders.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextProformaNumber(settings.proformaPrefix, tx);
+    const order = await tx.select().from(orders).where(eq(orders.id, id)).get();
     if (!order) throw new Error("Order not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, id))
@@ -199,7 +215,7 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
     const proforma = tx
       .insert(proformas)
       .values({
-        number: nextProformaNumber(settings.proformaPrefix),
+        number,
         clientId: order.clientId,
         quoteId: order.quoteId ?? null,
         orderId: order.id,
@@ -221,10 +237,14 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
       })
       .returning({ id: proformas.id })
       .get();
+    const insertedProforma = await proforma;
     for (const it of items) {
-      tx.insert(proformaItems).values({ proformaId: proforma.id, ...itemCopy(it) }).run();
+      await tx
+        .insert(proformaItems)
+        .values({ proformaId: insertedProforma.id, ...itemCopy(it) })
+        .run();
     }
-    return proforma.id;
+    return insertedProforma.id;
   });
 
   revalidatePath("/orders");
@@ -234,11 +254,12 @@ export async function convertOrderToProforma(id: number): Promise<FormState> {
 
 /** Create an Invoice from an order, copying items and totals. */
 export async function convertOrderToInvoice(id: number): Promise<FormState> {
-  const settings = getSettings();
-  const newId = db.transaction((tx) => {
-    const order = tx.select().from(orders).where(eq(orders.id, id)).get();
+  const settings = await getSettings();
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
+    const order = await tx.select().from(orders).where(eq(orders.id, id)).get();
     if (!order) throw new Error("Order not found");
-    const items = tx
+    const items = await tx
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, id))
@@ -249,7 +270,7 @@ export async function convertOrderToInvoice(id: number): Promise<FormState> {
     const invoice = tx
       .insert(invoices)
       .values({
-        number: nextInvoiceNumber(settings.invoicePrefix),
+        number,
         clientId: order.clientId,
         quoteId: order.quoteId ?? null,
         orderId: order.id,
@@ -268,13 +289,21 @@ export async function convertOrderToInvoice(id: number): Promise<FormState> {
       })
       .returning({ id: invoices.id })
       .get();
+    const insertedInvoice = await invoice;
     for (const it of items) {
-      tx.insert(invoiceItems).values({ invoiceId: invoice.id, ...itemCopy(it) }).run();
+      await tx
+        .insert(invoiceItems)
+        .values({ invoiceId: insertedInvoice.id, ...itemCopy(it) })
+        .run();
     }
     if (order.status === "draft") {
-      tx.update(orders).set({ status: "confirmed" }).where(eq(orders.id, id)).run();
+      await tx
+        .update(orders)
+        .set({ status: "confirmed" })
+        .where(eq(orders.id, id))
+        .run();
     }
-    return invoice.id;
+    return insertedInvoice.id;
   });
 
   revalidatePath("/orders");

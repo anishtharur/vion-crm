@@ -13,7 +13,10 @@ import {
 } from "@/lib/db/schema";
 import { paged, type ListParams, type Paged } from "./list-params";
 
-export type OrderListRow = Order & { clientName: string; clientCompany: string };
+export type OrderListRow = Order & {
+  clientName: string;
+  clientCompany: string;
+};
 
 export const ORDER_SORT = {
   number: orders.number,
@@ -22,24 +25,33 @@ export const ORDER_SORT = {
   total: orders.total,
 } as const;
 
-export function listOrders(params: ListParams): Paged<OrderListRow> {
-  const col = (params.sort && ORDER_SORT[params.sort as keyof typeof ORDER_SORT]) || orders.createdAt;
+export async function listOrders(
+  params: ListParams,
+): Promise<Paged<OrderListRow>> {
+  const col =
+    (params.sort && ORDER_SORT[params.sort as keyof typeof ORDER_SORT]) ||
+    orders.createdAt;
   const orderBy = params.dir === "asc" ? asc(col) : desc(col);
 
-  const total = db.select({ v: count() }).from(orders).get()?.v ?? 0;
-  const rows = db
-    .select({
-      order: orders,
-      clientName: clients.name,
-      clientCompany: clients.company,
-    })
-    .from(orders)
-    .innerJoin(clients, eq(orders.clientId, clients.id))
-    .orderBy(orderBy)
-    .limit(params.pageSize)
-    .offset(params.offset)
-    .all()
-    .map((r) => ({ ...r.order, clientName: r.clientName, clientCompany: r.clientCompany }));
+  const total = (await db.select({ v: count() }).from(orders).get())?.v ?? 0;
+  const rows = (
+    await db
+      .select({
+        order: orders,
+        clientName: clients.name,
+        clientCompany: clients.company,
+      })
+      .from(orders)
+      .innerJoin(clients, eq(orders.clientId, clients.id))
+      .orderBy(orderBy)
+      .limit(params.pageSize)
+      .offset(params.offset)
+      .all()
+  ).map((r) => ({
+    ...r.order,
+    clientName: r.clientName,
+    clientCompany: r.clientCompany,
+  }));
 
   return paged(rows, total, params);
 }
@@ -50,12 +62,18 @@ export type OrderWithItems = {
   items: OrderItem[];
 };
 
-export function getOrder(id: number): OrderWithItems | undefined {
-  const order = db.select().from(orders).where(eq(orders.id, id)).get();
+export async function getOrder(
+  id: number,
+): Promise<OrderWithItems | undefined> {
+  const order = await db.select().from(orders).where(eq(orders.id, id)).get();
   if (!order) return undefined;
-  const client = db.select().from(clients).where(eq(clients.id, order.clientId)).get();
+  const client = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, order.clientId))
+    .get();
   if (!client) return undefined;
-  const items = db
+  const items = await db
     .select()
     .from(orderItems)
     .where(eq(orderItems.orderId, id))

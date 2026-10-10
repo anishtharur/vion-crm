@@ -13,11 +13,11 @@ export default async function PrintInvoicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getInvoice(Number(id));
+  const found = await getInvoice(Number(id));
   if (!found) notFound();
 
   const { invoice, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <>

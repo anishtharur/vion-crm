@@ -3,12 +3,7 @@ import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import {
-  clients,
-  invoices,
-  payments,
-  quotes,
-} from "@/lib/db/schema";
+import { clients, invoices, payments, quotes } from "@/lib/db/schema";
 import { getSettings } from "@/lib/data/settings";
 import { convertToBase, parseRates } from "@/lib/utils/currency";
 import { displayInvoiceStatus } from "@/lib/utils/invoice-status";
@@ -45,27 +40,34 @@ export type DashboardData = {
   }[];
 };
 
-export function getDashboard(): DashboardData {
+export async function getDashboard(): Promise<DashboardData> {
   const today = todayISO();
 
   // Everything on the dashboard rolls up into the base currency using the
   // exchange rates from settings, so mixed-currency documents sum correctly.
-  const { currencyCode: baseCode, exchangeRates } = getSettings();
+  const { currencyCode: baseCode, exchangeRates } = await getSettings();
   const rates = parseRates(exchangeRates);
   const toBase = (amount: number, code: string | null | undefined) =>
     convertToBase(amount, code, baseCode, rates);
 
   const clientsCount =
-    db.select({ c: sql<number>`count(*)` }).from(clients).get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(clients)
+        .get()
+    )?.c ?? 0;
 
   const quotesPending =
-    db
-      .select({ c: sql<number>`count(*)` })
-      .from(quotes)
-      .where(sql`${quotes.status} IN ('draft','sent')`)
-      .get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(quotes)
+        .where(sql`${quotes.status} IN ('draft','sent')`)
+        .get()
+    )?.c ?? 0;
 
-  const pendingQuotes = db
+  const pendingQuotes = await db
     .select({ total: quotes.total, currency: quotes.currency })
     .from(quotes)
     .where(sql`${quotes.status} IN ('draft','sent')`)
@@ -75,7 +77,7 @@ export function getDashboard(): DashboardData {
   );
 
   // Outstanding = unpaid balance across all invoices.
-  const allInvoices = db.select().from(invoices).all();
+  const allInvoices = await db.select().from(invoices).all();
   let outstanding = 0;
   let overdueAmount = 0;
   const statusMap = new Map<string, { count: number; amount: number }>();
@@ -96,10 +98,14 @@ export function getDashboard(): DashboardData {
   const statusOrder = ["draft", "sent", "partial", "paid", "overdue"];
   const statusBreakdown = statusOrder
     .filter((s) => statusMap.has(s))
-    .map((s) => ({ status: s, count: statusMap.get(s)!.count, amount: round2(statusMap.get(s)!.amount) }));
+    .map((s) => ({
+      status: s,
+      count: statusMap.get(s)!.count,
+      amount: round2(statusMap.get(s)!.amount),
+    }));
 
   // Payments grouped by yyyy-mm, each converted from its invoice's currency.
-  const paymentRows = db
+  const paymentRows = await db
     .select({
       paidOn: payments.paidOn,
       amount: payments.amount,
@@ -124,7 +130,7 @@ export function getDashboard(): DashboardData {
   const thisYm = today.slice(0, 7);
   const collectedThisMonth = paymentByMonth.get(thisYm) ?? 0;
 
-  const recentQuotes = db
+  const recentQuotes = await db
     .select({
       id: quotes.id,
       number: quotes.number,
@@ -140,35 +146,41 @@ export function getDashboard(): DashboardData {
     .limit(5)
     .all();
 
-  const recentInvoices = db
-    .select({
-      id: invoices.id,
-      number: invoices.number,
-      clientName: clients.name,
-      status: invoices.status,
-      total: invoices.total,
-      amountPaid: invoices.amountPaid,
-      currency: invoices.currency,
-      dueDate: invoices.dueDate,
-    })
-    .from(invoices)
-    .innerJoin(clients, eq(invoices.clientId, clients.id))
-    .orderBy(desc(invoices.createdAt))
-    .limit(5)
-    .all()
-    .map((inv) => ({
-      id: inv.id,
-      number: inv.number,
-      clientName: inv.clientName,
-      status: displayInvoiceStatus(
-        { status: inv.status, total: inv.total, amountPaid: inv.amountPaid, dueDate: inv.dueDate },
-        today,
-      ),
-      total: inv.total,
-      balance: round2((inv.total ?? 0) - (inv.amountPaid ?? 0)),
-      currency: inv.currency,
-      dueDate: inv.dueDate,
-    }));
+  const recentInvoices = (
+    await db
+      .select({
+        id: invoices.id,
+        number: invoices.number,
+        clientName: clients.name,
+        status: invoices.status,
+        total: invoices.total,
+        amountPaid: invoices.amountPaid,
+        currency: invoices.currency,
+        dueDate: invoices.dueDate,
+      })
+      .from(invoices)
+      .innerJoin(clients, eq(invoices.clientId, clients.id))
+      .orderBy(desc(invoices.createdAt))
+      .limit(5)
+      .all()
+  ).map((inv) => ({
+    id: inv.id,
+    number: inv.number,
+    clientName: inv.clientName,
+    status: displayInvoiceStatus(
+      {
+        status: inv.status,
+        total: inv.total,
+        amountPaid: inv.amountPaid,
+        dueDate: inv.dueDate,
+      },
+      today,
+    ),
+    total: inv.total,
+    balance: round2((inv.total ?? 0) - (inv.amountPaid ?? 0)),
+    currency: inv.currency,
+    dueDate: inv.dueDate,
+  }));
 
   return {
     clientsCount,
@@ -185,8 +197,18 @@ export function getDashboard(): DashboardData {
 }
 
 const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 function lastSixMonths(today: string): { ym: string; label: string }[] {

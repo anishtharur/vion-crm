@@ -15,13 +15,18 @@ export default async function NewInvoicePage({
   searchParams: Promise<{ clientId?: string }>;
 }) {
   const { clientId } = await searchParams;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const issueDate = todayISO();
 
   return (
     <div className="space-y-6">
-      <PageHeader title="New invoice" description="Bill a client for completed work." />
+      <PageHeader
+        title="New invoice"
+        description="Bill a client for completed work."
+      />
       <DocumentForm
         kind="invoice"
         action={createInvoice}

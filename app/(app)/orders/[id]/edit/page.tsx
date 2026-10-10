@@ -17,17 +17,22 @@ export default async function EditOrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getOrder(Number(id));
+  const found = await getOrder(Number(id));
   if (!found) notFound();
 
   const { order, items } = found;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const action = updateOrder.bind(null, order.id);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Edit ${order.number}`} description="Update this order." />
+      <PageHeader
+        title={`Edit ${order.number}`}
+        description="Update this order."
+      />
       <DocumentForm
         kind="order"
         action={action}

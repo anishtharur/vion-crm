@@ -25,11 +25,11 @@ export default async function ProformaDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getProforma(Number(id));
+  const found = await getProforma(Number(id));
   if (!found) notFound();
 
   const { proforma, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <div className="space-y-6">
@@ -43,7 +43,10 @@ export default async function ProformaDetailPage({
               statuses={PROFORMA_STATUSES}
               action={setProformaStatus.bind(null, proforma.id)}
             />
-            <Link href={`/proformas/${proforma.id}/edit`} className={buttonClass("outline", "md")}>
+            <Link
+              href={`/proformas/${proforma.id}/edit`}
+              className={buttonClass("outline", "md")}
+            >
               <Pencil className="h-4 w-4" />
               Edit
             </Link>

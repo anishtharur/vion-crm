@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   if (await getSession()) redirect("/");
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4">

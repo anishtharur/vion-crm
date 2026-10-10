@@ -19,8 +19,10 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = parseListParams(await searchParams, { sortable: Object.keys(ORDER_SORT) });
-  const { rows, total, page, pageCount } = listOrders(params);
+  const params = parseListParams(await searchParams, {
+    sortable: Object.keys(ORDER_SORT),
+  });
+  const { rows, total, page, pageCount } = await listOrders(params);
 
   return (
     <div className="space-y-6">
@@ -70,20 +72,33 @@ export default async function OrdersPage({
               confirm: `Delete ${o.number}? This cannot be undone.`,
             },
             cells: [
-              <Link key="n" href={`/orders/${o.id}`} className="font-medium text-primary hover:underline">
+              <Link
+                key="n"
+                href={`/orders/${o.id}`}
+                className="font-medium text-primary hover:underline"
+              >
                 {o.number}
               </Link>,
               <div key="c">
-                <Link href={`/clients/${o.clientId}`} className="hover:text-primary">
+                <Link
+                  href={`/clients/${o.clientId}`}
+                  className="hover:text-primary"
+                >
                   {o.clientName}
                 </Link>
                 {o.clientCompany ? (
-                  <span className="block text-xs text-muted-foreground">{o.clientCompany}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {o.clientCompany}
+                  </span>
                 ) : null}
               </div>,
-              <span key="d" className="text-muted-foreground">{formatDate(o.issueDate)}</span>,
+              <span key="d" className="text-muted-foreground">
+                {formatDate(o.issueDate)}
+              </span>,
               <StatusBadge key="s" status={o.status} />,
-              <span key="t" className="font-medium">{formatMoney(o.total, currencySymbol(o.currency))}</span>,
+              <span key="t" className="font-medium">
+                {formatMoney(o.total, currencySymbol(o.currency))}
+              </span>,
             ],
           }))}
         />

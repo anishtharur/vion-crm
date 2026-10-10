@@ -15,13 +15,18 @@ export default async function NewProformaPage({
   searchParams: Promise<{ clientId?: string }>;
 }) {
   const { clientId } = await searchParams;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
   const issueDate = todayISO();
 
   return (
     <div className="space-y-6">
-      <PageHeader title="New pro-forma invoice" description="Issue an advance invoice." />
+      <PageHeader
+        title="New pro-forma invoice"
+        description="Issue an advance invoice."
+      />
       <DocumentForm
         kind="proforma"
         action={createProforma}

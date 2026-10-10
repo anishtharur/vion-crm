@@ -13,11 +13,11 @@ export default async function PrintQuotePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getQuote(Number(id));
+  const found = await getQuote(Number(id));
   if (!found) notFound();
 
   const { quote, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <>

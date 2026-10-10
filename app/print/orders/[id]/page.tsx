@@ -13,11 +13,11 @@ export default async function PrintOrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getOrder(Number(id));
+  const found = await getOrder(Number(id));
   if (!found) notFound();
 
   const { order, client, items } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <>

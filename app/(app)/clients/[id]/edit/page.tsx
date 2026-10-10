@@ -13,15 +13,22 @@ export default async function EditClientPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const client = getClient(Number(id));
+  const client = await getClient(Number(id));
   if (!client) notFound();
 
   const action = updateClient.bind(null, client.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title={`Edit ${client.name}`} description="Update client details." />
-      <ClientForm action={action} client={client} cancelHref={`/clients/${client.id}`} />
+      <PageHeader
+        title={`Edit ${client.name}`}
+        description="Update client details."
+      />
+      <ClientForm
+        action={action}
+        client={client}
+        cancelHref={`/clients/${client.id}`}
+      />
     </div>
   );
 }

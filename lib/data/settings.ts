@@ -9,12 +9,17 @@ import { settings, type Settings } from "@/lib/db/schema";
  * Returns the single settings row, creating it with defaults on first access.
  * This replaces a separate seed script — the app self-initializes.
  */
-export function getSettings(): Settings {
-  const existing = db.select().from(settings).where(eq(settings.id, 1)).get();
+export async function getSettings(): Promise<Settings> {
+  const existing = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.id, 1))
+    .get();
   if (existing) return existing;
 
   // Seed the single settings row with the Vion Labs document-numbering prefixes.
-  db.insert(settings)
+  await db
+    .insert(settings)
     .values({
       id: 1,
       quotePrefix: "QID-VL",
@@ -26,5 +31,5 @@ export function getSettings(): Settings {
     .onConflictDoNothing()
     .run();
   // Re-read so callers always get a fully-defaulted row.
-  return db.select().from(settings).where(eq(settings.id, 1)).get()!;
+  return (await db.select().from(settings).where(eq(settings.id, 1)).get())!;
 }

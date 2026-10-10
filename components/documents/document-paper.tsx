@@ -53,6 +53,10 @@ const TITLES: Record<PaperDocType, string> = {
   invoice: "Invoice",
 };
 
+function normalizeAddressLine(value: string) {
+  return value.toLowerCase().replace(/[.,]/g, "").replace(/\s+/g, " ").trim();
+}
+
 export function DocumentPaper({
   settings,
   client,
@@ -68,6 +72,15 @@ export function DocumentPaper({
   const sym = currencySymbol(code);
   const isInvoice = data.docType === "invoice";
   const balance = (data.total ?? 0) - (data.amountPaid ?? 0);
+  const billingAddressLines = client.billingAddress.split(/\r?\n/);
+  if (
+    client.company &&
+    normalizeAddressLine(billingAddressLines[0]) ===
+      normalizeAddressLine(client.company)
+  ) {
+    billingAddressLines.shift();
+  }
+  const billingAddress = billingAddressLines.join("\n").trim();
 
   const terms = buildTerms(data, settings);
 
@@ -95,8 +108,12 @@ export function DocumentPaper({
         </div>
 
         <div className="text-right text-xs leading-relaxed text-muted-foreground">
-          <p className="text-sm font-semibold text-foreground">{settings.companyName}</p>
-          {settings.address ? <p className="whitespace-pre-line">{settings.address}</p> : null}
+          <p className="text-sm font-semibold text-foreground">
+            {settings.companyName}
+          </p>
+          {settings.address ? (
+            <p className="whitespace-pre-line">{settings.address}</p>
+          ) : null}
           {settings.phone ? <p>Tel: {settings.phone}</p> : null}
           {settings.email ? <p>Email: {settings.email}</p> : null}
           {settings.gstin ? <p>GSTIN: {settings.gstin}</p> : null}
@@ -121,11 +138,13 @@ export function DocumentPaper({
           <InfoBox label={isInvoice ? "Invoice to" : "Quotation to"}>
             <p className="font-semibold text-foreground">{client.name}</p>
             {client.company ? <p>{client.company}</p> : null}
-            {client.billingAddress ? (
-              <p className="whitespace-pre-line">{client.billingAddress}</p>
+            {billingAddress ? (
+              <p className="whitespace-pre-line">{billingAddress}</p>
             ) : null}
             {client.postalCode || client.country ? (
-              <p>{[client.postalCode, client.country].filter(Boolean).join(", ")}</p>
+              <p>
+                {[client.postalCode, client.country].filter(Boolean).join(", ")}
+              </p>
             ) : null}
             {client.fax ? <p>Fax: {client.fax}</p> : null}
             {data.attention ? <p>Attn: {data.attention}</p> : null}
@@ -160,15 +179,24 @@ export function DocumentPaper({
               <th className="px-2 py-2 text-center">Unit</th>
               <th className="px-2 py-2 text-right">Qty</th>
               <th className="px-2 py-2 text-right">Unit price</th>
-              <th className="rounded-r-md py-2 pl-2 pr-3 text-right">Total price</th>
+              <th className="rounded-r-md py-2 pl-2 pr-3 text-right">
+                Total price
+              </th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
-              <tr key={item.id ?? i} className="border-b border-border/70 align-top">
-                <td className="py-1.5 pl-3 pr-2 tabular-nums text-muted-foreground">{i + 1}</td>
+              <tr
+                key={item.id ?? i}
+                className="border-b border-border/70 align-top"
+              >
+                <td className="py-1.5 pl-3 pr-2 tabular-nums text-muted-foreground">
+                  {i + 1}
+                </td>
                 <td className="px-2 py-1.5">
-                  <p className="font-semibold leading-snug text-foreground">{item.description || "—"}</p>
+                  <p className="font-semibold leading-snug text-foreground">
+                    {item.description || "—"}
+                  </p>
                   {item.detail ? (
                     <p className="mt-0.5 whitespace-pre-line text-xs leading-snug text-muted-foreground">
                       {item.detail}
@@ -182,8 +210,12 @@ export function DocumentPaper({
                     </span>
                   ) : null}
                 </td>
-                <td className="px-2 py-1.5 text-center text-muted-foreground">{item.unit}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{item.quantity}</td>
+                <td className="px-2 py-1.5 text-center text-muted-foreground">
+                  {item.unit}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">
+                  {item.quantity}
+                </td>
                 <td className="px-2 py-1.5 text-right tabular-nums">
                   {formatMoney(item.unitPrice, sym)}
                 </td>
@@ -198,9 +230,15 @@ export function DocumentPaper({
         {/* Totals */}
         <div className="mt-4 flex flex-col items-end gap-3">
           <div className="w-full max-w-sm space-y-2 text-sm">
-            <TotalRow label="Subtotal" value={formatMoney(data.subtotal, sym)} />
+            <TotalRow
+              label="Subtotal"
+              value={formatMoney(data.subtotal, sym)}
+            />
             {data.discount > 0 ? (
-              <TotalRow label="Discount" value={`-${formatMoney(data.discount, sym)}`} />
+              <TotalRow
+                label="Discount"
+                value={`-${formatMoney(data.discount, sym)}`}
+              />
             ) : null}
             {data.taxAmount > 0 ? (
               <TotalRow
@@ -221,10 +259,15 @@ export function DocumentPaper({
 
           {isInvoice && (data.amountPaid ?? 0) > 0 ? (
             <div className="w-full max-w-sm space-y-2 text-sm">
-              <TotalRow label="Amount paid" value={`-${formatMoney(data.amountPaid ?? 0, sym)}`} />
+              <TotalRow
+                label="Amount paid"
+                value={`-${formatMoney(data.amountPaid ?? 0, sym)}`}
+              />
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="font-semibold">Balance due</span>
-                <span className="font-semibold tabular-nums">{formatMoney(balance, sym)}</span>
+                <span className="font-semibold tabular-nums">
+                  {formatMoney(balance, sym)}
+                </span>
               </div>
             </div>
           ) : null}
@@ -241,7 +284,9 @@ export function DocumentPaper({
         {data.notes ? (
           <div className="mt-5 border-t border-border pt-4 text-sm">
             <SectionLabel>Notes</SectionLabel>
-            <p className="mt-1 whitespace-pre-line text-foreground">{data.notes}</p>
+            <p className="mt-1 whitespace-pre-line text-foreground">
+              {data.notes}
+            </p>
           </div>
         ) : null}
 
@@ -249,7 +294,9 @@ export function DocumentPaper({
         {isInvoice && settings.bankDetails ? (
           <div className="mt-4 border-t border-border pt-4 text-sm">
             <SectionLabel>Payment details</SectionLabel>
-            <p className="mt-1 whitespace-pre-line text-foreground">{settings.bankDetails}</p>
+            <p className="mt-1 whitespace-pre-line text-foreground">
+              {settings.bankDetails}
+            </p>
           </div>
         ) : null}
 
@@ -262,7 +309,9 @@ export function DocumentPaper({
             <dl className="mt-2 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
               {terms.map(([label, value]) => (
                 <div key={label} className="flex gap-3">
-                  <dt className="w-24 shrink-0 font-semibold text-foreground">{label}</dt>
+                  <dt className="w-24 shrink-0 font-semibold text-foreground">
+                    {label}
+                  </dt>
                   <dd className="text-muted-foreground">{value}</dd>
                 </div>
               ))}
@@ -274,9 +323,10 @@ export function DocumentPaper({
         <div className="mt-8 grid gap-8 sm:grid-cols-2">
           <SignatureBlock
             title={`For ${settings.companyName}`}
+            signature={settings.signatoryName}
             caption={
               settings.signatoryName
-                ? `${settings.signatoryName} · Authorised Signatory & Stamp`
+                ? "Authorised Signatory · Digital Signature"
                 : "Authorised Signatory · Name & Stamp"
             }
           />
@@ -297,8 +347,8 @@ export function DocumentPaper({
             {data.number ? ` · ${data.number}` : ""}
           </span>
           <span>
-            This {TITLES[data.docType].toLowerCase()} is computer-generated and valid with
-            authorised signature &amp; stamp.
+            This {TITLES[data.docType].toLowerCase()} is computer-generated and
+            valid with authorised signature &amp; stamp.
           </span>
         </div>
       </div>
@@ -341,11 +391,21 @@ function buildTerms(data: PaperData, settings: Settings): [string, string][] {
   return rows.filter(([, value]) => value.trim() !== "");
 }
 
-function InfoBox({ label, children }: { label: string; children: React.ReactNode }) {
+function InfoBox({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-border p-3.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-q-green-mid">{label}</p>
-      <div className="mt-1.5 space-y-0.5 text-sm text-muted-foreground">{children}</div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-q-green-mid">
+        {label}
+      </p>
+      <div className="mt-1.5 space-y-0.5 text-sm text-muted-foreground">
+        {children}
+      </div>
     </div>
   );
 }
@@ -361,15 +421,35 @@ function TotalRow({ label, value }: { label: string; value: string }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-wide text-q-green-mid">{children}</p>
+    <p className="text-xs font-semibold uppercase tracking-wide text-q-green-mid">
+      {children}
+    </p>
   );
 }
 
-function SignatureBlock({ title, caption }: { title: string; caption: string }) {
+function SignatureBlock({
+  title,
+  caption,
+  signature,
+}: {
+  title: string;
+  caption: string;
+  signature?: string;
+}) {
   return (
     <div>
       <p className="text-sm font-semibold text-foreground">{title}</p>
-      <div className="mt-8 border-t border-foreground/40" />
+      <div className="mt-2 flex h-10 items-end">
+        {signature ? (
+          <p
+            className="-rotate-2 font-serif text-2xl italic leading-none text-q-green-mid"
+            style={{ fontFamily: "cursive" }}
+          >
+            {signature}
+          </p>
+        ) : null}
+      </div>
+      <div className="border-t border-foreground/40" />
       <p className="mt-1.5 text-xs text-muted-foreground">{caption}</p>
     </div>
   );

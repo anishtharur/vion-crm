@@ -17,7 +17,11 @@ import {
   quotes,
   type InvoiceStatus,
 } from "@/lib/db/schema";
-import { lineTotal as calcLine, computeTotals, round2 } from "@/lib/utils/money";
+import {
+  lineTotal as calcLine,
+  computeTotals,
+  round2,
+} from "@/lib/utils/money";
 import { statusFromPayment } from "@/lib/utils/invoice-status";
 import {
   flattenErrors,
@@ -35,7 +39,7 @@ function parse(formData: FormData) {
     dueDate: formData.get("dueDate") ?? "",
     status: formData.get("status") ?? "draft",
     discount: formData.get("discount") ?? 0,
-    taxRate: formData.get("taxRate") ?? 0,
+    taxRate: formData.get("taxRate") ?? 5,
     notes: formData.get("notes") ?? "",
     terms: formData.get("terms") ?? "",
     items: pruneItems(readItemsJson(formData) as never[]),
@@ -44,9 +48,14 @@ function parse(formData: FormData) {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function insertInvoiceItems(tx: Tx, invoiceId: number, items: PrunedItem[]) {
-  items.forEach((item, index) => {
-    tx.insert(invoiceItems)
+async function insertInvoiceItems(
+  tx: Tx,
+  invoiceId: number,
+  items: PrunedItem[],
+) {
+  for (const [index, item] of items.entries()) {
+    await tx
+      .insert(invoiceItems)
       .values({
         invoiceId,
         description: item.description,
@@ -59,7 +68,7 @@ function insertInvoiceItems(tx: Tx, invoiceId: number, items: PrunedItem[]) {
         sortOrder: index,
       })
       .run();
-  });
+  }
 }
 
 export async function createInvoice(
@@ -67,16 +76,18 @@ export async function createInvoice(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
-  const settings = getSettings();
+  const settings = await getSettings();
 
-  const newId = db.transaction((tx) => {
+  const newId = await db.transaction(async (tx) => {
+    const number = await nextInvoiceNumber(settings.invoicePrefix, tx);
     const invoice = tx
       .insert(invoices)
       .values({
-        number: nextInvoiceNumber(settings.invoicePrefix),
+        number,
         clientId: data.clientId,
         status: data.status,
         issueDate: data.issueDate,
@@ -93,8 +104,9 @@ export async function createInvoice(
       })
       .returning({ id: invoices.id })
       .get();
-    insertInvoiceItems(tx, invoice.id, data.items);
-    return invoice.id;
+    const insertedInvoice = await invoice;
+    await insertInvoiceItems(tx, insertedInvoice.id, data.items);
+    return insertedInvoice.id;
   });
 
   revalidatePath("/invoices");
@@ -107,12 +119,14 @@ export async function updateInvoice(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = parse(formData);
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
   const data = parsed.data;
   const totals = computeTotals(data);
 
-  db.transaction((tx) => {
-    tx.update(invoices)
+  await db.transaction(async (tx) => {
+    await tx
+      .update(invoices)
       .set({
         clientId: data.clientId,
         status: data.status,
@@ -129,8 +143,8 @@ export async function updateInvoice(
       })
       .where(eq(invoices.id, id))
       .run();
-    tx.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id)).run();
-    insertInvoiceItems(tx, id, data.items);
+    await tx.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id)).run();
+    await insertInvoiceItems(tx, id, data.items);
   });
 
   revalidatePath("/invoices");
@@ -145,7 +159,8 @@ export async function setInvoiceStatus(
   if (!INVOICE_STATUSES.includes(status as InvoiceStatus)) {
     return { ok: false, message: "Invalid status" };
   }
-  db.update(invoices)
+  await db
+    .update(invoices)
     .set({ status: status as InvoiceStatus })
     .where(eq(invoices.id, id))
     .run();
@@ -159,25 +174,29 @@ export async function deleteInvoice(
   _prev: FormState,
   _formData: FormData,
 ): Promise<FormState> {
-  db.delete(invoices).where(eq(invoices.id, id)).run();
+  await db.delete(invoices).where(eq(invoices.id, id)).run();
   revalidatePath("/invoices");
   redirect("/invoices");
 }
 
 /** Delete an invoice from the list (stays on the list; no redirect). */
 export async function deleteInvoiceRow(id: number): Promise<FormState> {
-  db.delete(invoices).where(eq(invoices.id, id)).run();
+  await db.delete(invoices).where(eq(invoices.id, id)).run();
   revalidatePath("/invoices");
   return { ok: true };
 }
 
 /** Delete a payment receipt from the receipts list and resync its invoice. */
 export async function deleteReceiptRow(paymentId: number): Promise<FormState> {
-  db.transaction((tx) => {
-    const pay = tx.select().from(payments).where(eq(payments.id, paymentId)).get();
+  await db.transaction(async (tx) => {
+    const pay = await tx
+      .select()
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .get();
     if (!pay) return;
-    tx.delete(payments).where(eq(payments.id, paymentId)).run();
-    syncInvoiceTotals(tx, pay.invoiceId);
+    await tx.delete(payments).where(eq(payments.id, paymentId)).run();
+    await syncInvoiceTotals(tx, pay.invoiceId);
   });
   revalidatePath("/receipts");
   revalidatePath("/invoices");
@@ -197,18 +216,22 @@ export async function recordPayment(
     method: formData.get("method") ?? "",
     note: formData.get("note") ?? "",
   });
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
-  const settings = getSettings();
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
+  const settings = await getSettings();
 
-  db.transaction((tx) => {
-    tx.insert(payments)
+  await db.transaction(async (tx) => {
+    const number = await nextReceiptNumber(settings.receiptPrefix, tx);
+    const reference = await receiptReference(tx, invoiceId);
+    await tx
+      .insert(payments)
       .values({
         ...parsed.data,
-        number: nextReceiptNumber(settings.receiptPrefix),
-        reference: receiptReference(tx, invoiceId),
+        number,
+        reference,
       })
       .run();
-    syncInvoiceTotals(tx, invoiceId);
+    await syncInvoiceTotals(tx, invoiceId);
   });
 
   revalidatePath("/invoices");
@@ -218,20 +241,36 @@ export async function recordPayment(
 }
 
 /** Build the "received against" reference chain (invoice · pro-forma · quote numbers). */
-function receiptReference(tx: Tx, invoiceId: number): string {
-  const invoice = tx.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+async function receiptReference(tx: Tx, invoiceId: number): Promise<string> {
+  const invoice = await tx
+    .select()
+    .from(invoices)
+    .where(eq(invoices.id, invoiceId))
+    .get();
   if (!invoice) return "";
   const parts = [invoice.number];
   if (invoice.proformaId) {
-    const pi = tx.select().from(proformas).where(eq(proformas.id, invoice.proformaId)).get();
+    const pi = await tx
+      .select()
+      .from(proformas)
+      .where(eq(proformas.id, invoice.proformaId))
+      .get();
     if (pi) parts.push(pi.number);
   }
   if (invoice.orderId) {
-    const order = tx.select().from(orders).where(eq(orders.id, invoice.orderId)).get();
+    const order = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.id, invoice.orderId))
+      .get();
     if (order) parts.push(order.number);
   }
   if (invoice.quoteId) {
-    const quote = tx.select().from(quotes).where(eq(quotes.id, invoice.quoteId)).get();
+    const quote = await tx
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, invoice.quoteId))
+      .get();
     if (quote) parts.push(quote.number);
   }
   return parts.join(" · ");
@@ -241,24 +280,32 @@ export async function deletePayment(
   paymentId: number,
   invoiceId: number,
 ): Promise<FormState> {
-  db.transaction((tx) => {
-    tx.delete(payments).where(eq(payments.id, paymentId)).run();
-    syncInvoiceTotals(tx, invoiceId);
+  await db.transaction(async (tx) => {
+    await tx.delete(payments).where(eq(payments.id, paymentId)).run();
+    await syncInvoiceTotals(tx, invoiceId);
   });
   revalidatePath(`/invoices/${invoiceId}`);
   return { ok: true };
 }
 
 /** Recompute amountPaid (sum of payments) and derive paid/partial status. */
-function syncInvoiceTotals(tx: Tx, invoiceId: number) {
-  const invoice = tx.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+async function syncInvoiceTotals(tx: Tx, invoiceId: number) {
+  const invoice = await tx
+    .select()
+    .from(invoices)
+    .where(eq(invoices.id, invoiceId))
+    .get();
   if (!invoice) return;
-  const paidRow = tx
+  const paidRow = await tx
     .select({ sum: sql<number>`COALESCE(SUM(${payments.amount}), 0)` })
     .from(payments)
     .where(eq(payments.invoiceId, invoiceId))
     .get();
   const amountPaid = round2(paidRow?.sum ?? 0);
   const status = statusFromPayment(amountPaid, invoice.total, invoice.status);
-  tx.update(invoices).set({ amountPaid, status }).where(eq(invoices.id, invoiceId)).run();
+  await tx
+    .update(invoices)
+    .set({ amountPaid, status })
+    .where(eq(invoices.id, invoiceId))
+    .run();
 }

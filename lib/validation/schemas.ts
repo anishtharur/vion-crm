@@ -56,7 +56,7 @@ const documentBase = {
   issueDate: z.string().trim().min(1, "Issue date is required"),
   currency: z.enum(CURRENCY_CODES).default("USD"),
   discount: z.coerce.number().min(0).max(100_000_000).default(0),
-  taxRate: z.coerce.number().min(0).max(100).default(0),
+  taxRate: z.coerce.number().min(0).max(100).default(5),
   notes: optionalText,
   terms: optionalText,
   items: z
@@ -118,7 +118,7 @@ export const settingsSchema = z.object({
   currencySymbol: z.string().trim().min(1, "Required").max(8),
   currencyCode: z.string().trim().max(8).default("USD"),
   exchangeRates: z.string().default("{}"),
-  defaultTaxRate: z.coerce.number().min(0).max(100).default(0),
+  defaultTaxRate: z.coerce.number().min(0).max(100).default(5),
   taxLabel: z.string().trim().min(1, "Required").max(20),
   quotePrefix: z.string().trim().min(1, "Required").max(16),
   orderPrefix: z.string().trim().min(1, "Required").max(16),

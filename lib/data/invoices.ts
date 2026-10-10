@@ -32,33 +32,36 @@ export const INVOICE_SORT = {
   balance: sql`(${invoices.total} - ${invoices.amountPaid})`,
 } as const;
 
-export function listInvoices(params: ListParams): Paged<InvoiceListRow> {
+export async function listInvoices(
+  params: ListParams,
+): Promise<Paged<InvoiceListRow>> {
   const today = todayISO();
   const col =
     (params.sort && INVOICE_SORT[params.sort as keyof typeof INVOICE_SORT]) ||
     invoices.createdAt;
   const orderBy = params.dir === "asc" ? asc(col) : desc(col);
 
-  const total = db.select({ v: count() }).from(invoices).get()?.v ?? 0;
-  const rows = db
-    .select({
-      invoice: invoices,
-      clientName: clients.name,
-      clientCompany: clients.company,
-    })
-    .from(invoices)
-    .innerJoin(clients, eq(invoices.clientId, clients.id))
-    .orderBy(orderBy)
-    .limit(params.pageSize)
-    .offset(params.offset)
-    .all()
-    .map((r) => ({
-      ...r.invoice,
-      clientName: r.clientName,
-      clientCompany: r.clientCompany,
-      displayStatus: displayInvoiceStatus(r.invoice, today),
-      balance: (r.invoice.total ?? 0) - (r.invoice.amountPaid ?? 0),
-    }));
+  const total = (await db.select({ v: count() }).from(invoices).get())?.v ?? 0;
+  const rows = (
+    await db
+      .select({
+        invoice: invoices,
+        clientName: clients.name,
+        clientCompany: clients.company,
+      })
+      .from(invoices)
+      .innerJoin(clients, eq(invoices.clientId, clients.id))
+      .orderBy(orderBy)
+      .limit(params.pageSize)
+      .offset(params.offset)
+      .all()
+  ).map((r) => ({
+    ...r.invoice,
+    clientName: r.clientName,
+    clientCompany: r.clientCompany,
+    displayStatus: displayInvoiceStatus(r.invoice, today),
+    balance: (r.invoice.total ?? 0) - (r.invoice.amountPaid ?? 0),
+  }));
 
   return paged(rows, total, params);
 }
@@ -72,18 +75,28 @@ export type InvoiceWithItems = {
   balance: number;
 };
 
-export function getInvoice(id: number): InvoiceWithItems | undefined {
-  const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+export async function getInvoice(
+  id: number,
+): Promise<InvoiceWithItems | undefined> {
+  const invoice = await db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.id, id))
+    .get();
   if (!invoice) return undefined;
-  const client = db.select().from(clients).where(eq(clients.id, invoice.clientId)).get();
+  const client = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, invoice.clientId))
+    .get();
   if (!client) return undefined;
-  const items = db
+  const items = await db
     .select()
     .from(invoiceItems)
     .where(eq(invoiceItems.invoiceId, id))
     .orderBy(invoiceItems.sortOrder)
     .all();
-  const pays = db
+  const pays = await db
     .select()
     .from(payments)
     .where(eq(payments.invoiceId, id))

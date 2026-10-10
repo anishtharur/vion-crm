@@ -27,7 +27,9 @@ const CLIENT_SORT = {
   email: clients.email,
 } as const;
 
-export function listClients(params: ListParams): Paged<ClientListRow> {
+export async function listClients(
+  params: ListParams,
+): Promise<Paged<ClientListRow>> {
   const term = params.q;
   const where = term
     ? or(
@@ -42,33 +44,36 @@ export function listClients(params: ListParams): Paged<ClientListRow> {
       ? quoteCountSql
       : params.sort === "invoices"
         ? invoiceCountSql
-        : (params.sort && CLIENT_SORT[params.sort as keyof typeof CLIENT_SORT]) ||
+        : (params.sort &&
+            CLIENT_SORT[params.sort as keyof typeof CLIENT_SORT]) ||
           clients.createdAt;
   const orderBy = params.dir === "asc" ? asc(col) : desc(col);
 
-  const total = db.select({ v: count() }).from(clients).where(where).get()?.v ?? 0;
-  const rows = db
-    .select({
-      client: clients,
-      quoteCount: quoteCountSql,
-      invoiceCount: invoiceCountSql,
-    })
-    .from(clients)
-    .where(where)
-    .orderBy(orderBy)
-    .limit(params.pageSize)
-    .offset(params.offset)
-    .all()
-    .map((r) => ({
-      ...r.client,
-      quoteCount: r.quoteCount,
-      invoiceCount: r.invoiceCount,
-    }));
+  const total =
+    (await db.select({ v: count() }).from(clients).where(where).get())?.v ?? 0;
+  const rows = (
+    await db
+      .select({
+        client: clients,
+        quoteCount: quoteCountSql,
+        invoiceCount: invoiceCountSql,
+      })
+      .from(clients)
+      .where(where)
+      .orderBy(orderBy)
+      .limit(params.pageSize)
+      .offset(params.offset)
+      .all()
+  ).map((r) => ({
+    ...r.client,
+    quoteCount: r.quoteCount,
+    invoiceCount: r.invoiceCount,
+  }));
 
   return paged(rows, total, params);
 }
 
-export function getClient(id: number): Client | undefined {
+export async function getClient(id: number): Promise<Client | undefined> {
   return db.select().from(clients).where(eq(clients.id, id)).get();
 }
 
@@ -78,18 +83,20 @@ export type ClientDetail = {
   invoices: Invoice[];
 };
 
-export function getClientDetail(id: number): ClientDetail | undefined {
-  const client = getClient(id);
+export async function getClientDetail(
+  id: number,
+): Promise<ClientDetail | undefined> {
+  const client = await getClient(id);
   if (!client) return undefined;
   return {
     client,
-    quotes: db
+    quotes: await db
       .select()
       .from(quotes)
       .where(eq(quotes.clientId, id))
       .orderBy(desc(quotes.createdAt))
       .all(),
-    invoices: db
+    invoices: await db
       .select()
       .from(invoices)
       .where(eq(invoices.clientId, id))
@@ -99,7 +106,9 @@ export function getClientDetail(id: number): ClientDetail | undefined {
 }
 
 /** Lightweight list for select dropdowns. */
-export function listClientOptions(): Pick<Client, "id" | "name" | "company">[] {
+export async function listClientOptions(): Promise<
+  Pick<Client, "id" | "name" | "company">[]
+> {
   return db
     .select({ id: clients.id, name: clients.name, company: clients.company })
     .from(clients)

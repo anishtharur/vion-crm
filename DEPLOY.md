@@ -1,8 +1,15 @@
-# Deploying Vion CRM on an Oracle Cloud Always Free VM
+# Deploying Vion CRM on Oracle Cloud Always Free with SQLite
 
-The app runs as a single long-lived Node process with SQLite on local disk —
-exactly what a VM gives you. Oracle's Always Free tier includes an Ampere ARM
-VM (up to 4 OCPU / 24 GB RAM) that is free indefinitely, not a trial.
+The app and its SQLite database run on one Oracle Cloud VM. This is the simplest
+setup for a small team: no remote database account or database migration is
+needed. Keep the database on persistent VM storage and maintain off-VM backups.
+The VM also runs Chromium for PDF generation. Oracle's Always Free tier
+includes an Ampere ARM VM (up to 4 OCPU / 24 GB RAM), subject to account
+eligibility and regional capacity.
+
+Run one app instance against this local database file. Do not scale the app to
+multiple VMs sharing the same SQLite file; use a remote database if you later
+need multiple app instances.
 
 Total setup time: roughly an hour, most of it Oracle signup.
 
@@ -54,7 +61,7 @@ sudo apt-get install -y nodejs git sqlite3
 sudo snap install chromium
 ```
 
-## 4. Set up the app
+## 4. Set up the app and SQLite database
 
 ```bash
 git clone <your-repo-url> ~/vion-crm
@@ -62,7 +69,6 @@ cd ~/vion-crm
 
 # Skip Puppeteer's Chromium download — it fails on ARM and we use snap's anyway
 PUPPETEER_SKIP_DOWNLOAD=1 npm ci
-
 mkdir -p ~/data
 ```
 
@@ -82,12 +88,33 @@ Generate each password hash on the VM (or locally) with:
 npm run auth:hash -- "the password"
 ```
 
-Then create the schema and build:
+### Copy the existing local database
+
+Stop the local development server first so the SQLite file is closed cleanly.
+Then copy the database to the VM:
 
 ```bash
-npm run db:push
-npm run build
+scp vion.db ubuntu@<public-ip>:/home/ubuntu/data/vion.db
 ```
+
+If you have the SQLite CLI installed locally, prefer making a consistent
+backup first and copy that instead:
+
+```bash
+sqlite3 vion.db ".backup 'vion-backup.db'"
+scp vion-backup.db ubuntu@<public-ip>:/home/ubuntu/vion-backup.db
+```
+
+On the VM, move the backup into the configured location:
+
+```bash
+mv /home/ubuntu/vion-backup.db /home/ubuntu/data/vion.db
+```
+
+If starting fresh instead, omit the copy step and run `npm run db:push` to
+create an empty database. For a copied database, `db:push` is only needed when
+the application schema changes. Keep the original local file as a backup until
+the VM copy is verified.
 
 ## 5. Run it as a service
 
@@ -120,10 +147,9 @@ sudo systemctl status vion-crm     # should be active (running)
 
 ## 6. HTTPS with Caddy
 
-You need a domain (an A record pointing at the VM's public IP). A free
-subdomain from [duckdns.org](https://www.duckdns.org) works, as does any
-domain you own. Caddy then provisions and renews Let's Encrypt certificates
-automatically.
+Set an A record for `vion-labs.com` to the VM's public IP in the domain's DNS
+controls (currently managed through Vercel). Caddy provisions and renews
+Let's Encrypt certificates automatically.
 
 ```bash
 sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -135,7 +161,7 @@ sudo apt-get update && sudo apt-get install -y caddy
 `sudo nano /etc/caddy/Caddyfile`:
 
 ```
-crm.yourdomain.com {
+vion-labs.com {
     reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -144,31 +170,26 @@ crm.yourdomain.com {
 sudo systemctl reload caddy
 ```
 
-Open `https://crm.yourdomain.com` — you should land on the login page.
+Open `https://vion-labs.com` and verify the login page. Add `www.vion-labs.com`
+to Caddy only after configuring its DNS record too.
 
 > No domain yet? You can temporarily set `COOKIE_SECURE=0` in `.env` and use
 > `http://<public-ip>` directly, but traffic (including passwords) is then
 > unencrypted — don't put real data in until HTTPS is up.
 
-## 7. Backups
+## 7. Database backups and recovery
 
-The whole database is one file. A nightly cron with sqlite's online backup
-(safe while the app is running) plus 14-day retention:
+Production data lives at `/home/ubuntu/data/vion.db`. Schedule SQLite's online
+backup command and keep copies off the VM; the backup works while the app is
+running:
 
 ```bash
 mkdir -p ~/backups
-crontab -e
+sqlite3 /home/ubuntu/data/vion.db ".backup '/home/ubuntu/backups/vion-$(date +\%F).db'"
 ```
 
-Add:
-
-```cron
-0 2 * * * sqlite3 /home/ubuntu/data/vion.db ".backup '/home/ubuntu/backups/vion-$(date +\%F).db'" && find /home/ubuntu/backups -name 'vion-*.db' -mtime +14 -delete
-```
-
-For off-site copies, sync `~/backups` anywhere with
-[rclone](https://rclone.org) (Google Drive, etc.) — a second cron line:
-`30 2 * * * rclone copy /home/ubuntu/backups remote:vion-backups`.
+Copy backups to storage outside the VM and periodically test restoring one.
+Do not rely on the VM's boot disk as the only copy of customer and invoice data.
 
 ## 8. Updating the app
 

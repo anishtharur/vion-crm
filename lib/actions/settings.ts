@@ -36,7 +36,7 @@ export async function updateSettings(
     currencySymbol: currencySymbol(baseCode),
     currencyCode: baseCode,
     exchangeRates: JSON.stringify(rates),
-    defaultTaxRate: formData.get("defaultTaxRate") ?? 0,
+    defaultTaxRate: formData.get("defaultTaxRate") ?? 5,
     taxLabel: formData.get("taxLabel"),
     quotePrefix: formData.get("quotePrefix"),
     orderPrefix: formData.get("orderPrefix"),
@@ -56,13 +56,18 @@ export async function updateSettings(
     termsCompliance: formData.get("termsCompliance") ?? "",
     termsPacking: formData.get("termsPacking") ?? "",
   });
-  if (!parsed.success) return { ok: false, errors: flattenErrors(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, errors: flattenErrors(parsed.error) };
 
   // Ensure the single row exists, then update it.
-  db.insert(settings).values({ id: 1, ...parsed.data }).onConflictDoUpdate({
-    target: settings.id,
-    set: parsed.data,
-  }).run();
+  await db
+    .insert(settings)
+    .values({ id: 1, ...parsed.data })
+    .onConflictDoUpdate({
+      target: settings.id,
+      set: parsed.data,
+    })
+    .run();
 
   revalidatePath("/", "layout");
   return { ok: true, message: "Settings saved." };

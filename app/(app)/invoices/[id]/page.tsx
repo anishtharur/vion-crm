@@ -31,11 +31,11 @@ export default async function InvoiceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const found = getInvoice(Number(id));
+  const found = await getInvoice(Number(id));
   if (!found) notFound();
 
   const { invoice, client, items, payments, balance } = found;
-  const settings = getSettings();
+  const settings = await getSettings();
   const sym = currencySymbol(invoice.currency);
 
   return (
@@ -50,7 +50,10 @@ export default async function InvoiceDetailPage({
               statuses={INVOICE_EDITABLE_STATUSES}
               action={setInvoiceStatus.bind(null, invoice.id)}
             />
-            <Link href={`/invoices/${invoice.id}/edit`} className={buttonClass("outline", "md")}>
+            <Link
+              href={`/invoices/${invoice.id}/edit`}
+              className={buttonClass("outline", "md")}
+            >
               <Pencil className="h-4 w-4" />
               Edit
             </Link>
@@ -140,7 +143,9 @@ export default async function InvoiceDetailPage({
                     className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium tabular-nums">{formatMoney(p.amount, sym)}</p>
+                      <p className="font-medium tabular-nums">
+                        {formatMoney(p.amount, sym)}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {p.number ? `${p.number} · ` : ""}
                         {formatDate(p.paidOn)}

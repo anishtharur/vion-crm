@@ -15,12 +15,17 @@ export default async function NewOrderPage({
   searchParams: Promise<{ clientId?: string }>;
 }) {
   const { clientId } = await searchParams;
-  const settings = getSettings();
-  const clients = listClientOptions();
+  const [settings, clients] = await Promise.all([
+    getSettings(),
+    listClientOptions(),
+  ]);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="New order acknowledgement" description="Confirm a sales order." />
+      <PageHeader
+        title="New order acknowledgement"
+        description="Confirm a sales order."
+      />
       <DocumentForm
         kind="order"
         action={createOrder}

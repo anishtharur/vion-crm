@@ -35,7 +35,11 @@ export async function createClient(
     return { ok: false, errors: flattenErrors(parsed.error) };
   }
 
-  const result = db.insert(clients).values(parsed.data).returning({ id: clients.id }).get();
+  const result = await db
+    .insert(clients)
+    .values(parsed.data)
+    .returning({ id: clients.id })
+    .get();
   revalidatePath("/clients");
   redirect(`/clients/${result.id}`);
 }
@@ -50,7 +54,7 @@ export async function updateClient(
     return { ok: false, errors: flattenErrors(parsed.error) };
   }
 
-  db.update(clients).set(parsed.data).where(eq(clients.id, id)).run();
+  await db.update(clients).set(parsed.data).where(eq(clients.id, id)).run();
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
   redirect(`/clients/${id}`);
@@ -63,17 +67,21 @@ export async function deleteClient(
 ): Promise<FormState> {
   // Guard: don't orphan documents. Block deletion if the client is referenced.
   const quoteCount =
-    db
-      .select({ c: sql<number>`count(*)` })
-      .from(quotes)
-      .where(eq(quotes.clientId, id))
-      .get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(quotes)
+        .where(eq(quotes.clientId, id))
+        .get()
+    )?.c ?? 0;
   const invoiceCount =
-    db
-      .select({ c: sql<number>`count(*)` })
-      .from(invoices)
-      .where(eq(invoices.clientId, id))
-      .get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.clientId, id))
+        .get()
+    )?.c ?? 0;
   if (quoteCount > 0 || invoiceCount > 0) {
     return {
       ok: false,
@@ -82,7 +90,7 @@ export async function deleteClient(
     };
   }
 
-  db.delete(clients).where(eq(clients.id, id)).run();
+  await db.delete(clients).where(eq(clients.id, id)).run();
   revalidatePath("/clients");
   redirect("/clients");
 }
@@ -90,16 +98,28 @@ export async function deleteClient(
 /** Delete a client from the list, guarding against orphaning documents. */
 export async function deleteClientRow(id: number): Promise<FormState> {
   const quoteCount =
-    db.select({ c: sql<number>`count(*)` }).from(quotes).where(eq(quotes.clientId, id)).get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(quotes)
+        .where(eq(quotes.clientId, id))
+        .get()
+    )?.c ?? 0;
   const invoiceCount =
-    db.select({ c: sql<number>`count(*)` }).from(invoices).where(eq(invoices.clientId, id)).get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.clientId, id))
+        .get()
+    )?.c ?? 0;
   if (quoteCount > 0 || invoiceCount > 0) {
     return {
       ok: false,
       message: "This client has quotes or invoices. Delete those first.",
     };
   }
-  db.delete(clients).where(eq(clients.id, id)).run();
+  await db.delete(clients).where(eq(clients.id, id)).run();
   revalidatePath("/clients");
   return { ok: true };
 }

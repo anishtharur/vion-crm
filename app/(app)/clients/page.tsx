@@ -20,7 +20,7 @@ export default async function ClientsPage({
 }) {
   const sp = await searchParams;
   const params = parseListParams(sp, { sortable: SORTABLE });
-  const { rows, total, page, pageCount } = listClients(params);
+  const { rows, total, page, pageCount } = await listClients(params);
   const q = params.q;
 
   return (
@@ -59,7 +59,10 @@ export default async function ClientsPage({
             }
             action={
               q ? undefined : (
-                <Link href="/clients/new" className={buttonClass("primary", "md")}>
+                <Link
+                  href="/clients/new"
+                  className={buttonClass("primary", "md")}
+                >
                   <UserPlus className="h-4 w-4" />
                   Add client
                 </Link>
@@ -88,11 +91,19 @@ export default async function ClientsPage({
               confirm: `Delete ${c.name}? This cannot be undone.`,
             },
             cells: [
-              <Link key="n" href={`/clients/${c.id}`} className="font-medium text-foreground hover:text-primary">
+              <Link
+                key="n"
+                href={`/clients/${c.id}`}
+                className="font-medium text-foreground hover:text-primary"
+              >
                 {c.name}
               </Link>,
-              <span key="co" className="text-muted-foreground">{c.company || "—"}</span>,
-              <span key="e" className="text-muted-foreground">{c.email || "—"}</span>,
+              <span key="co" className="text-muted-foreground">
+                {c.company || "—"}
+              </span>,
+              <span key="e" className="text-muted-foreground">
+                {c.email || "—"}
+              </span>,
               <span key="q">{c.quoteCount}</span>,
               <span key="i">{c.invoiceCount}</span>,
             ],

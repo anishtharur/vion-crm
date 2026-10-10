@@ -13,7 +13,10 @@ import {
 } from "@/lib/db/schema";
 import { paged, type ListParams, type Paged } from "./list-params";
 
-export type QuoteListRow = Quote & { clientName: string; clientCompany: string };
+export type QuoteListRow = Quote & {
+  clientName: string;
+  clientCompany: string;
+};
 
 export const QUOTE_SORT = {
   number: quotes.number,
@@ -22,24 +25,33 @@ export const QUOTE_SORT = {
   total: quotes.total,
 } as const;
 
-export function listQuotes(params: ListParams): Paged<QuoteListRow> {
-  const col = (params.sort && QUOTE_SORT[params.sort as keyof typeof QUOTE_SORT]) || quotes.createdAt;
+export async function listQuotes(
+  params: ListParams,
+): Promise<Paged<QuoteListRow>> {
+  const col =
+    (params.sort && QUOTE_SORT[params.sort as keyof typeof QUOTE_SORT]) ||
+    quotes.createdAt;
   const orderBy = params.dir === "asc" ? asc(col) : desc(col);
 
-  const total = db.select({ v: count() }).from(quotes).get()?.v ?? 0;
-  const rows = db
-    .select({
-      quote: quotes,
-      clientName: clients.name,
-      clientCompany: clients.company,
-    })
-    .from(quotes)
-    .innerJoin(clients, eq(quotes.clientId, clients.id))
-    .orderBy(orderBy)
-    .limit(params.pageSize)
-    .offset(params.offset)
-    .all()
-    .map((r) => ({ ...r.quote, clientName: r.clientName, clientCompany: r.clientCompany }));
+  const total = (await db.select({ v: count() }).from(quotes).get())?.v ?? 0;
+  const rows = (
+    await db
+      .select({
+        quote: quotes,
+        clientName: clients.name,
+        clientCompany: clients.company,
+      })
+      .from(quotes)
+      .innerJoin(clients, eq(quotes.clientId, clients.id))
+      .orderBy(orderBy)
+      .limit(params.pageSize)
+      .offset(params.offset)
+      .all()
+  ).map((r) => ({
+    ...r.quote,
+    clientName: r.clientName,
+    clientCompany: r.clientCompany,
+  }));
 
   return paged(rows, total, params);
 }
@@ -50,12 +62,18 @@ export type QuoteWithItems = {
   items: QuoteItem[];
 };
 
-export function getQuote(id: number): QuoteWithItems | undefined {
-  const quote = db.select().from(quotes).where(eq(quotes.id, id)).get();
+export async function getQuote(
+  id: number,
+): Promise<QuoteWithItems | undefined> {
+  const quote = await db.select().from(quotes).where(eq(quotes.id, id)).get();
   if (!quote) return undefined;
-  const client = db.select().from(clients).where(eq(clients.id, quote.clientId)).get();
+  const client = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, quote.clientId))
+    .get();
   if (!client) return undefined;
-  const items = db
+  const items = await db
     .select()
     .from(quoteItems)
     .where(eq(quoteItems.quoteId, id))

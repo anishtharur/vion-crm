@@ -18,7 +18,9 @@ export const settings = sqliteTable("settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyName: text("company_name").notNull().default("Vion Labs"),
   /** Strapline under the wordmark, e.g. "Industrial Automation · Fire & Controls". */
-  tagline: text("tagline").notNull().default("Industrial Automation · Fire & Controls"),
+  tagline: text("tagline")
+    .notNull()
+    .default("Industrial Automation · Fire & Controls"),
   email: text("email").notNull().default(""),
   phone: text("phone").notNull().default(""),
   address: text("address").notNull().default(""),
@@ -31,8 +33,8 @@ export const settings = sqliteTable("settings", {
   currencyCode: text("currency_code").notNull().default("USD"),
   /** JSON map { [code]: unitsOfBasePerOneUnit }, e.g. {"USD":83} when base is INR. */
   exchangeRates: text("exchange_rates").notNull().default("{}"),
-  /** Default GST / tax percentage, e.g. 18 for 18%. */
-  defaultTaxRate: real("default_tax_rate").notNull().default(0),
+  /** Default GST / tax percentage, e.g. 5 for 5%. */
+  defaultTaxRate: real("default_tax_rate").notNull().default(5),
   taxLabel: text("tax_label").notNull().default("GST"),
   // Existing prefixes keep their original DB defaults to avoid a table-recreate on
   // push; the Vion Labs "*-VL" values are seeded in getSettings() and on the live row.
@@ -47,16 +49,22 @@ export const settings = sqliteTable("settings", {
   paymentTermsDays: integer("payment_terms_days").notNull().default(14),
   paymentTerms: text("payment_terms").notNull().default(""),
   bankDetails: text("bank_details").notNull().default(""),
-  footerNote: text("footer_note").notNull().default("Thank you for your business."),
+  footerNote: text("footer_note")
+    .notNull()
+    .default("Thank you for your business."),
   /** Name printed under the "For <company>" signature line on quotes. */
   signatoryName: text("signatory_name").notNull().default(""),
   // --- Quotation commercial-terms boilerplate (the grid at the foot of a quote) ---
   termsScope: text("terms_scope")
     .notNull()
-    .default("Supply of equipment only. Installation, testing & commissioning excluded unless quoted separately."),
+    .default(
+      "Supply of equipment only. Installation, testing & commissioning excluded unless quoted separately.",
+    ),
   termsPrices: text("terms_prices")
     .notNull()
-    .default("Ex-Works (Incoterms 2020). Freight, insurance, duties & taxes extra."),
+    .default(
+      "Ex-Works (Incoterms 2020). Freight, insurance, duties & taxes extra.",
+    ),
   termsDelivery: text("terms_delivery")
     .notNull()
     .default("To be confirmed on receipt of confirmed PO & advance payment."),
@@ -115,7 +123,7 @@ export const quotes = sqliteTable("quotes", {
   terms: text("terms").notNull().default(""),
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(0),
+  taxRate: real("tax_rate").notNull().default(5),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   currency: text("currency").notNull().default("USD"),
@@ -158,7 +166,9 @@ export const orders = sqliteTable("orders", {
     .notNull()
     .references(() => clients.id, { onDelete: "restrict" }),
   /** Source quote this order acknowledges, if converted from one. */
-  quoteId: integer("quote_id").references(() => quotes.id, { onDelete: "set null" }),
+  quoteId: integer("quote_id").references(() => quotes.id, {
+    onDelete: "set null",
+  }),
   status: text("status").notNull().default("draft").$type<OrderStatus>(),
   issueDate: text("issue_date").notNull(),
   /** Promised delivery lead time, e.g. "6 weeks from confirmed PO". */
@@ -172,7 +182,7 @@ export const orders = sqliteTable("orders", {
   terms: text("terms").notNull().default(""),
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(0),
+  taxRate: real("tax_rate").notNull().default(5),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   currency: text("currency").notNull().default("USD"),
@@ -210,8 +220,12 @@ export const proformas = sqliteTable("proformas", {
   clientId: integer("client_id")
     .notNull()
     .references(() => clients.id, { onDelete: "restrict" }),
-  quoteId: integer("quote_id").references(() => quotes.id, { onDelete: "set null" }),
-  orderId: integer("order_id").references(() => orders.id, { onDelete: "set null" }),
+  quoteId: integer("quote_id").references(() => quotes.id, {
+    onDelete: "set null",
+  }),
+  orderId: integer("order_id").references(() => orders.id, {
+    onDelete: "set null",
+  }),
   status: text("status").notNull().default("draft").$type<ProformaStatus>(),
   issueDate: text("issue_date").notNull(),
   validUntil: text("valid_until").notNull().default(""),
@@ -223,7 +237,7 @@ export const proformas = sqliteTable("proformas", {
   terms: text("terms").notNull().default(""),
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(0),
+  taxRate: real("tax_rate").notNull().default(5),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   currency: text("currency").notNull().default("USD"),
@@ -264,7 +278,9 @@ export const invoices = sqliteTable("invoices", {
   quoteId: integer("quote_id").references(() => quotes.id, {
     onDelete: "set null",
   }),
-  orderId: integer("order_id").references(() => orders.id, { onDelete: "set null" }),
+  orderId: integer("order_id").references(() => orders.id, {
+    onDelete: "set null",
+  }),
   proformaId: integer("proforma_id").references(() => proformas.id, {
     onDelete: "set null",
   }),
@@ -275,7 +291,7 @@ export const invoices = sqliteTable("invoices", {
   terms: text("terms").notNull().default(""),
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").notNull().default(0),
-  taxRate: real("tax_rate").notNull().default(0),
+  taxRate: real("tax_rate").notNull().default(5),
   taxAmount: real("tax_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   amountPaid: real("amount_paid").notNull().default(0),

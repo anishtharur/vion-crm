@@ -10,9 +10,11 @@
     "auth:hash": "node scripts/hash-password.mjs",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:import": "node scripts/import-sqlite-to-turso.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.17.0",
